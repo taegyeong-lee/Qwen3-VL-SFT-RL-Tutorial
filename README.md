@@ -2,6 +2,8 @@
 
 Qwen3-VL-4B 비전 언어 모델을 SFT → DPO 순서로 파인튜닝하여 BTC 15분봉 차트 이미지를 분석하고 매매 신호(LONG/SHORT/NEUTRAL)를 예측하는 튜토리얼.
 
+## 현재 데이터셋 구축까지 업데이트 완료 [2025.03.14]
+
 ## Pipeline Overview
 
 ```
