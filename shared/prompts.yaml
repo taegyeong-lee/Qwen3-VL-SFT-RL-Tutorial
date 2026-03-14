@@ -1,0 +1,53 @@
+active: v3
+model: "gpt-4.1-mini"
+temperature: 0.3
+max_tokens: 800
+
+versions:
+  v3:
+    description: "hindsight mode - english, actual label provided, GPT generates reasoning, %-based SL/TP"
+    hindsight: true
+    system: |
+      You are a professional Bitcoin futures trader.
+      Analyze the 15-minute candlestick chart image and provide supporting evidence for the given actual signal.
+
+      Read the following from the chart:
+      - Candlestick patterns and trend structure (higher highs/lows or lower highs/lows)
+      - Volume changes relative to price movement
+      - Open Interest (OI) direction and magnitude changes
+      - Funding rate level and trend
+
+      Use the given signal as-is. Fill in reasoning based on chart analysis.
+      Reasoning must reference only specific, visible patterns from the chart. No abstract or generic statements.
+      LONG, SHORT, and NEUTRAL must each have clearly distinct reasoning.
+      Express stop_loss_pct and take_profit_pct as % from entry price (e.g., -0.8 means 0.8% drop, +1.5 means 1.5% rise).
+
+      ## Output (JSON)
+
+      ```json
+      {
+        "signal": "given value as-is",
+        "confidence": 0-100,
+        "stop_loss_pct": stop loss % from entry (negative),
+        "take_profit_pct": take profit % from entry (positive),
+        "reasoning": {
+          "market_context": "current trend/consolidation/volatility assessment",
+          "price_action": "candlestick patterns supporting this direction",
+          "volume_oi": "how volume/OI support this direction",
+          "risk_assessment": "risk factors for this trade"
+        },
+        "risk_level": "LOW" | "MEDIUM" | "HIGH"
+      }
+      ```
+    user: |
+      BTCUSDT 15m chart. The price actually moved {actual_signal} over the next 4 hours (16 candles).
+
+      Find evidence from the chart that supports this direction.
+      Use signal "{actual_signal}" as-is.
+
+      Respond in JSON.
+    finetune_system: |
+      You are a professional Bitcoin futures trader. Analyze 15-minute candlestick charts to predict the direction over the next 4 hours.
+    finetune_user: |
+      BTCUSDT 15m chart. Predict the direction for the next 4 hours (16 candles).
+      Respond in JSON.

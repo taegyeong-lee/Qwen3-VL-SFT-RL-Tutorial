@@ -1,0 +1,26 @@
+# ── Data Preparation (Step 0~3) ──
+openai
+python-dotenv
+pandas
+numpy
+matplotlib
+mplfinance
+Pillow
+PyYAML
+
+# ── Training (SFT / DPO / GRPO) ──
+torch>=2.4.0
+transformers>=4.45.0
+trl>=0.29.0
+peft>=0.12.0
+datasets
+accelerate
+
+# ── Inference / DPO Pair Generation ──
+# vllm>=0.6.0
+
+# ── Monitoring ──
+tensorboard
+
+# ── Misc ──
+tqdm

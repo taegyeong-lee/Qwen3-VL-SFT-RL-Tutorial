@@ -1,0 +1,33 @@
+# SFT Config - Multi GPU (bf16 LoRA)
+model: "Qwen/Qwen3-VL-4B-Instruct"
+dataset_path: "data/teacher/dataset.jsonl"
+output_dir: "outputs/sft_lora"
+
+# LoRA
+lora_rank: 16
+lora_alpha: 32
+lora_dropout: 0.05
+
+# Training
+epochs: 2
+batch_size: 4
+grad_accum: 4
+lr: 5.0e-5
+lr_scheduler: "cosine"
+warmup_ratio: 0.05
+optim: "adamw_torch"
+bf16: true
+
+# Data
+train_ratio: 0.8
+val_ratio: 0.1
+
+# Checkpointing
+save_steps: 200
+save_total_limit: 2
+eval_steps: 200
+logging_steps: 10
+report_to: "tensorboard"
+dataloader_num_workers: 4
+# FSDP2 사용 시 activation checkpointing은 FSDP에서 처리
+gradient_checkpointing: false
