@@ -1,0 +1,302 @@
+[
+  {
+    "image": "chart_20260121_0100_20260122_0045.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.0987,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways movement with no clear higher highs or lower lows over the 4-hour period, indicating consolidation rather than a strong trend.\", \"price_action\": \"Candlesticks alternate between small bullish and bearish bodies with frequent wicks on both ends, reflecting indecision and lack of momentum in either direction.\", \"volume_oi\": \"Volume spikes occur but are not sustained, and Open Interest fluctuates mildly without a clear directional trend, supporting a balanced market with no strong commitment from traders.\", \"risk_assessment\": \"The risk is moderate due to the potential for breakout in either direction, but current price action and volume suggest a range-bound market, limiting immediate directional risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_0300_20260122_0245.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.2459,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price is moving sideways within a range roughly between $88,000 and $90,000, showing no clear uptrend or downtrend over the 4-hour period.\", \"price_action\": \"Candlesticks form alternating small-bodied candles with wicks on both sides, indicating indecision and lack of directional momentum. There are no sustained higher highs or lower lows, confirming consolidation.\", \"volume_oi\": \"Volume spikes occur but are not followed by strong price continuation, suggesting failed breakout attempts. Open Interest fluctuates mildly without a clear directional increase, indicating balanced participation from both buyers and sellers. Funding rate remains positive but stable, showing no strong bias.\", \"risk_assessment\": \"Risk is moderate as price could break out in either direction, but current patterns suggest low momentum. Tight stop loss is recommended to limit downside in case of breakout.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_0500_20260122_0445.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.0886,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price is oscillating within a tight range between roughly $89,000 and $90,000, showing no clear breakout or sustained directional trend over the 4-hour period.\", \"price_action\": \"Candlesticks form a series of small-bodied candles with alternating green and red bars, indicating indecision and lack of strong momentum in either direction.\", \"volume_oi\": \"Volume spikes occur but are not sustained, and Open Interest fluctuates mildly around 99K to 100K without a clear directional trend, suggesting no strong new positions are being taken to push price decisively.\", \"risk_assessment\": \"The lack of clear trend and mixed signals from volume and OI imply moderate risk of sudden moves, but current consolidation suggests limited downside or upside in the near term.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_0700_20260122_0645.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.0847,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price is consolidating in a tight range around $89,500 to $90,000 after a volatile swing, indicating lack of clear directional momentum.\", \"price_action\": \"Candlesticks show alternating small-bodied candles with wicks on both ends, reflecting indecision and no sustained trend. There are no strong higher highs or lower lows forming.\", \"volume_oi\": \"Volume has tapered off significantly after the initial volatility, showing reduced trading interest. Open Interest is relatively flat with minor fluctuations, suggesting no strong new positions are being opened. Funding rate remains positive but stable, indicating balanced long/short pressure.\", \"risk_assessment\": \"Risk is moderate due to prior volatility but current consolidation limits directional risk. Potential for breakout exists but unclear direction warrants caution.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_0845_20260122_0830.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.237,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways consolidation pattern after a volatile move, with no clear higher highs or lower lows forming over the last 16 candles.\", \"price_action\": \"Candlesticks form a horizontal range between roughly $89,000 and $90,000, with alternating small-bodied candles and no strong directional momentum.\", \"volume_oi\": \"Volume significantly decreases during the consolidation phase, indicating reduced trading activity. Open Interest stabilizes with minor fluctuations, showing no strong new positions being added.\", \"risk_assessment\": \"The lack of clear trend and low volume increase risk of false breakouts. Funding rate remains positive but stable, not indicating strong directional bias.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1045_20260122_1030.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.6299,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways consolidation pattern after an initial volatile move, with no clear higher highs or lower lows forming over the last several hours.\", \"price_action\": \"Candlesticks from around 01-21 22:00 to 01-22 10:30 form small-bodied candles with alternating colors, indicating indecision and lack of directional momentum.\", \"volume_oi\": \"Volume significantly decreases during the consolidation phase, reflecting reduced trading activity. Open Interest remains relatively flat with minor fluctuations, showing no strong new positions being added.\", \"risk_assessment\": \"The primary risk is a sudden breakout in either direction, but current low volume and stable OI suggest limited immediate volatility, supporting a neutral stance.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1115_20260122_1100.png",
+    "actual_signal": "SHORT",
+    "pct_change": -0.8144,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The chart shows a clear lower high and lower low pattern forming after a peak near 90,000 USDT, indicating a downtrend initiation on the 15-minute timeframe.\", \"price_action\": \"There is a strong bearish engulfing candle around 13:30 followed by consecutive red candles confirming selling pressure. The price fails to break back above the previous high and instead consolidates lower.\", \"volume_oi\": \"Volume spikes on red candles during the initial drop, showing strong selling interest. Open Interest declines initially during the drop, indicating short covering or liquidation, but then stabilizes, supporting sustained bearish momentum. Funding rate is positive and rising, suggesting longs are paying shorts, which often precedes a short-term correction downward.\", \"risk_assessment\": \"The risk is moderate as the price consolidates near 89,000 after the drop, which could lead to a reversal if buyers regain control. The positive funding rate also suggests some bullish pressure that could limit downside.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1130_20260122_1115.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.433,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The chart shows a recent peak around $90,000 followed by a series of lower highs and lower lows, indicating a short-term downtrend developing after a brief uptrend.\", \"price_action\": \"There is a clear bearish engulfing candle near the peak, followed by consecutive red candles confirming selling pressure and a breakdown from the recent consolidation zone.\", \"volume_oi\": \"Volume spikes on the red candles suggest strong selling interest. Open Interest initially declines with price drop, indicating liquidation of longs, then stabilizes, supporting continuation of downward momentum.\", \"risk_assessment\": \"Funding rate is positive and rising, which could encourage longs, posing some risk to the short. However, the strong bearish price action and volume outweigh this, but a sudden reversal could occur if buying volume returns.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1200_20260122_1145.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.0633,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a clear lower high and lower low pattern starting from around 12:30 to 18:00, indicating a short-term downtrend before entering a consolidation phase.\", \"price_action\": \"There is a strong bearish candlestick cluster between 12:30 and 15:00 with large red candles and lower closes, confirming selling pressure. The price fails to break above the previous high and reverses sharply.\", \"volume_oi\": \"Volume spikes on red candles during the initial drop, supporting strong selling interest. Open Interest decreases initially during the drop, indicating liquidation of longs or short covering, then stabilizes before rising again, which aligns with a short-term bearish move. Funding rate remains positive and rising, suggesting longs are paying shorts, adding pressure for a downward move.\", \"risk_assessment\": \"The consolidation after the drop introduces some uncertainty, and rising open interest later could signal potential reversal or increased volatility, so risk is moderate.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1215_20260122_1200.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.3016,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The chart shows a clear downtrend starting around 12:30 on 01-21, with lower highs and lower lows forming over several candles before price consolidates sideways.\", \"price_action\": \"There is a strong bearish engulfing candle around 12:30-13:00 that initiates the drop, followed by consecutive red candles confirming selling pressure. The price fails to break above previous highs and continues making lower highs.\", \"volume_oi\": \"Volume spikes on the initial drop, indicating strong selling interest. Open Interest declines initially during the drop, suggesting liquidation of long positions, which supports the downward move. Funding rate is positive and rising, indicating longs are paying shorts, which can precede bearish reversals.\", \"risk_assessment\": \"The risk lies in the sideways consolidation after the drop, which could lead to a reversal or range-bound action. However, the initial strong bearish momentum and volume support the short bias.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1230_20260122_1215.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.1525,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a clear lower high and lower low pattern starting shortly after 12:30 on 2026-01-21, indicating a downtrend developing over the next several candles.\", \"price_action\": \"There is a strong bearish engulfing candle around 14:00 on 2026-01-21, followed by consecutive red candles with lower closes, confirming selling pressure.\", \"volume_oi\": \"Volume spikes during the initial drop support strong selling interest. Open Interest initially declines, suggesting liquidation of longs, then stabilizes before rising again, indicating fresh short positions being added. Funding rate is positive and rising, which typically pressures longs and supports a short bias.\", \"risk_assessment\": \"The funding rate is relatively high and rising, which could lead to a short squeeze if buyers aggressively enter. Also, volume tapers off after the initial drop, so momentum could fade.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1300_20260122_1245.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.0878,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.8, \"reasoning\": {\"market_context\": \"The chart shows a clear downtrend starting shortly after the initial peak near $90,000, with lower highs and lower lows forming over several candles.\", \"price_action\": \"There is a strong bearish candlestick cluster around 13:30 to 15:00 with large red candles indicating selling pressure, followed by a failure to reclaim previous highs, confirming bearish momentum.\", \"volume_oi\": \"Volume spikes accompany the initial drop, indicating strong selling interest. Open Interest decreases initially during the drop, suggesting liquidation of long positions, then stabilizes, supporting continuation of the downward move. Funding rate is rising, which often precedes a correction or short-term pullback as longs pay shorts.\", \"risk_assessment\": \"The risk lies in the consolidation phase after the drop where price stabilizes near $89,000-$89,500, which could lead to a reversal if volume picks up on the upside. However, the initial strong bearish momentum supports the short bias.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1315_20260122_1300.png",
+    "actual_signal": "SHORT",
+    "pct_change": -0.9301,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a clear downtrend starting from a high near $90,000 with lower highs and lower lows visible in the first half of the chart before consolidating sideways.\", \"price_action\": \"There is a strong bearish candlestick cluster around 13:45 to 15:00 with large red candles and a sharp drop in price, indicating strong selling pressure. The price fails to recover above the previous highs, confirming the downward momentum.\", \"volume_oi\": \"Volume spikes significantly during the initial drop, supporting strong selling activity. Open Interest decreases initially during the drop, indicating liquidation of long positions, then stabilizes, which aligns with the bearish move. Funding rate is rising but remains below 1%, suggesting some bullish pressure but not enough to reverse the downtrend.\", \"risk_assessment\": \"The main risk is the subsequent sideways consolidation and rising Open Interest later, which could indicate potential accumulation or a reversal attempt. However, the initial strong bearish momentum and volume support the short direction.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1530_20260122_1515.png",
+    "actual_signal": "LONG",
+    "pct_change": 0.9508,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 85, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.8, \"reasoning\": {\"market_context\": \"The price shows a recovery from a sharp drop around 18:00 on 01-21, followed by a consolidation phase with higher lows and a relatively stable range before the next upward move.\", \"price_action\": \"After the initial strong bearish candles, there is a clear bullish reversal with consecutive green candles forming higher lows and higher highs, indicating buying interest and momentum building up.\", \"volume_oi\": \"Volume spikes coincide with the bullish reversal, supporting the price move. Open Interest initially dips but then steadily increases, indicating new long positions being added. The funding rate remains positive and rising, suggesting bullish sentiment among traders.\", \"risk_assessment\": \"The main risk is the initial volatility and the prior sharp drop, which could trigger stop losses if the price fails to hold the support level. However, the steady increase in OI and positive funding rate mitigate this risk somewhat.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1600_20260122_1545.png",
+    "actual_signal": "LONG",
+    "pct_change": 0.8761,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"After a sharp drop, the price formed a clear recovery with higher lows and higher highs from around 17:00 on 2026-01-21, indicating a short-term uptrend.\", \"price_action\": \"The initial strong bullish candles with long lower wicks show rejection of lower prices and buying pressure. Subsequent candles maintain a steady upward trajectory with smaller retracements, confirming bullish momentum.\", \"volume_oi\": \"Volume was high during the initial bounce, supporting the strength of the move. Open Interest increased gradually during the uptrend, indicating fresh long positions being added. The funding rate remained positive and rising, favoring longs.\", \"risk_assessment\": \"The risk lies in the later price consolidation and slight volume decline, which could precede a reversal. The stop loss is set tight below recent swing lows to limit downside risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1615_20260122_1600.png",
+    "actual_signal": "LONG",
+    "pct_change": 1.2097,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 85, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.8, \"reasoning\": {\"market_context\": \"The chart shows a clear uptrend starting around 18:00 on 01-21 with higher highs and higher lows forming over several candles, indicating bullish momentum.\", \"price_action\": \"There is a strong bullish engulfing candle near the start of the move, followed by multiple consecutive green candles with higher closes, confirming buyer strength.\", \"volume_oi\": \"Volume spikes coincide with the initial bullish candles, supporting the upward move. Open Interest rises steadily during the uptrend, indicating new longs entering the market. Funding rate is positive and increasing, which aligns with bullish sentiment.\", \"risk_assessment\": \"The main risk is the later price consolidation and slight retracement after the initial surge, which could trap late buyers. However, the overall trend and supporting volume/OI mitigate this risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1630_20260122_1615.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.6467,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways consolidation after an initial uptrend, with no clear higher highs or lower lows forming over the 4-hour period.\", \"price_action\": \"Candlesticks form a horizontal range near $89,000 to $90,000, with small-bodied candles and frequent wicks indicating indecision and lack of strong directional momentum.\", \"volume_oi\": \"Volume significantly decreases and remains low during the consolidation phase, while Open Interest stabilizes with minor fluctuations, indicating no strong new positions being opened. Funding rate remains positive but stable, suggesting balanced long/short sentiment.\", \"risk_assessment\": \"The risk is moderate due to the lack of clear breakout signals; price could break either way, so tight stop loss and take profit levels are recommended.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_1830_20260122_1815.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.2156,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways range after an initial sharp rise, with no clear higher highs or lower lows forming over the 4-hour period, indicating consolidation.\", \"price_action\": \"Candlesticks form a horizontal channel between roughly $89,000 and $90,000, with multiple small-bodied candles and wicks on both sides, reflecting indecision and lack of directional momentum.\", \"volume_oi\": \"Volume is relatively low and stable during the consolidation phase, with no significant spikes supporting a breakout. Open Interest remains mostly flat with minor fluctuations, suggesting no strong new positions are being added to push price decisively.\", \"risk_assessment\": \"Risk is moderate due to the potential for a breakout in either direction, but current price action and volume suggest waiting for clearer signals before committing to a directional trade.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_2030_20260122_2015.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.0417,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price is consolidating within a narrow range around $89,500 to $90,000, showing no clear directional trend over the 4-hour period.\", \"price_action\": \"Candlesticks display alternating small-bodied candles with wicks on both sides, indicating indecision and lack of strong momentum either up or down.\", \"volume_oi\": \"Volume is relatively low and stable during the consolidation phase, with no significant spikes to suggest strong buying or selling pressure. Open Interest initially rises but then slightly declines, reflecting balanced participation without directional bias. Funding rate remains positive but trends downward, indicating diminishing bullish sentiment.\", \"risk_assessment\": \"The main risk is a sudden breakout from the consolidation range, but current indicators suggest balanced forces. Tight stop loss is recommended to limit downside if volatility picks up.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260121_2230_20260122_2215.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.3824,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price is in a sideways consolidation phase between roughly $89,000 and $90,000, showing no clear directional trend over the 4-hour period.\", \"price_action\": \"Candlesticks show alternating small bullish and bearish bodies without strong momentum or decisive breakout, indicating indecision and range-bound movement.\", \"volume_oi\": \"Volume remains relatively stable and low without spikes supporting a breakout. Open Interest rises slightly then declines, reflecting lack of strong new positions being added. Funding rate stays positive but flattens, suggesting balanced long/short pressure.\", \"risk_assessment\": \"Risk of sudden breakout exists but current consolidation and lack of volume/OI support implies moderate risk; stop loss and take profit are tight to account for potential volatility.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0030_20260123_0015.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.4175,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways consolidation after a sharp drop, with no clear higher highs or lower lows forming over the 4-hour period, indicating a lack of strong directional trend.\", \"price_action\": \"Candlesticks form a range-bound pattern with alternating small-bodied candles and wicks on both sides, reflecting indecision and balanced buying and selling pressure.\", \"volume_oi\": \"Volume spikes during the initial drop but then normalizes at lower levels during consolidation. Open Interest rises before the drop, then declines and stabilizes, suggesting reduced new positions and uncertainty. Funding rate peaks and then declines, indicating fading bullish sentiment.\", \"risk_assessment\": \"The main risk is a potential breakout in either direction after consolidation, but current price action and volume suggest low momentum, supporting a neutral stance.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0230_20260123_0215.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.3214,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 70, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways movement with no clear higher highs or lower lows over the 4-hour period, indicating consolidation rather than a trending market.\", \"price_action\": \"Candlesticks form a range-bound pattern with alternating small bullish and bearish candles, lacking strong momentum in either direction.\", \"volume_oi\": \"Volume spikes are short-lived and do not sustain a directional move; Open Interest peaks and then declines, suggesting traders are closing positions rather than initiating strong directional bets.\", \"risk_assessment\": \"The lack of clear trend and moderate volume increases imply a risk of false breakouts, recommending cautious positioning with tight stops.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0430_20260123_0415.png",
+    "actual_signal": "SHORT",
+    "pct_change": -0.7217,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 85, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The chart shows a clear shift from a sideways consolidation near $90,000 to a sharp downward trend starting around 12:30. The price forms lower highs and lower lows after the peak, indicating bearish momentum.\", \"price_action\": \"A strong bearish engulfing candle appears around 12:30, followed by consecutive red candles confirming selling pressure. The price drops sharply from about $90,000 to below $88,700 within the next several candles, reinforcing the short direction.\", \"volume_oi\": \"Volume spikes significantly during the initial drop, supporting strong selling interest. Open Interest peaks just before the drop and then declines steadily, indicating liquidation of long positions and less new buying interest. Funding rate decreases from near 1.0% to about 0.3%, reducing long bias and supporting shorts.\", \"risk_assessment\": \"The main risk is a potential quick rebound as seen after the initial drop, where price retraces some losses. However, the overall volume and OI trends favor continuation of the down move in the short term.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0445_20260123_0430.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.6862,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 0.8, \"reasoning\": {\"market_context\": \"The price shows a sideways consolidation pattern after a sharp drop and partial recovery, with no clear higher highs or lower lows forming over the 4-hour period.\", \"price_action\": \"Candlesticks alternate between small-bodied bullish and bearish candles, indicating indecision and lack of directional momentum.\", \"volume_oi\": \"Volume spikes during the initial drop and recovery but then normalizes at lower levels, while Open Interest peaks and then declines, suggesting reduced new position entries and a lack of strong directional conviction.\", \"risk_assessment\": \"Risk is moderate due to the prior volatility, but the current consolidation and declining OI reduce the likelihood of a strong breakout in either direction.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0500_20260123_0445.png",
+    "actual_signal": "SHORT",
+    "pct_change": -0.82,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 85, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a clear lower high and lower low pattern starting around 12:00, indicating a downtrend formation after a brief consolidation near $90,000.\", \"price_action\": \"A strong bearish engulfing candle appears around 12:00, followed by consecutive red candles with lower closes, confirming selling pressure.\", \"volume_oi\": \"Volume spikes significantly during the initial drop around 12:00, supporting strong selling interest. Open Interest peaks and then declines sharply, indicating liquidation of long positions and bearish momentum. Funding rate is high but starts to decline, suggesting reduced long bias.\", \"risk_assessment\": \"Risk includes potential short-term retracements as price consolidates around $89,000-$89,500 after the drop, but overall trend and volume support continuation lower.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0600_20260123_0545.png",
+    "actual_signal": "SHORT",
+    "pct_change": -0.7077,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 85, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The market shows a clear short-term downtrend after a peak near $90,000, with lower highs and lower lows forming over the 15-minute candles.\", \"price_action\": \"There is a strong bearish engulfing candle around 12:00 followed by consecutive red candles confirming downward momentum. The price fails to break back above the previous resistance near $90,000 and continues lower.\", \"volume_oi\": \"Volume spikes significantly on the initial drop, indicating strong selling interest. Open Interest peaks around the same time and then declines steadily, suggesting liquidation of long positions and strengthening of the short move. Funding rate is declining from a high positive level, reducing bullish pressure.\", \"risk_assessment\": \"The risk lies in potential short-term retracements as price approaches support near $88,500. However, volume and OI trends support continuation of the downtrend, making this a medium risk trade.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0615_20260123_0600.png",
+    "actual_signal": "SHORT",
+    "pct_change": -0.7518,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 85, \"stop_loss_pct\": -0.6, \"take_profit_pct\": 1.2, \"reasoning\": {\"market_context\": \"The price shows a clear lower high and lower low pattern starting around 12:00 on 01-22, indicating a short-term downtrend after a brief consolidation near $90,000.\", \"price_action\": \"A strong bearish candlestick with a long body appears around 12:00, breaking below recent support near $89,700, followed by a series of lower lows and lower highs over the next several candles.\", \"volume_oi\": \"Volume spikes significantly during the initial drop, confirming strong selling pressure. Open Interest peaks just before the drop and then declines steadily, suggesting liquidation of long positions and increased bearish sentiment. Funding rate is positive but declining, indicating reduced long bias.\", \"risk_assessment\": \"The main risk is a potential short-term bounce as price approaches $88,500 support, but volume and OI trends support continuation of the down move in the near term.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0730_20260123_0715.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.4526,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways consolidation pattern after an initial drop and partial recovery, with no clear higher highs or lower lows forming over the 4-hour period.\", \"price_action\": \"Candlesticks alternate between small-bodied bullish and bearish candles, indicating indecision and lack of strong directional momentum.\", \"volume_oi\": \"Volume spikes during the initial drop but then declines and remains low during consolidation. Open Interest rises initially but then steadily decreases and flattens, suggesting reduced new positions and market indecision.\", \"risk_assessment\": \"Risk is moderate due to the lack of clear trend direction and low volatility; sudden breakouts remain possible but are not currently supported by volume or OI.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_0930_20260123_0915.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.1079,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 0.8, \"reasoning\": {\"market_context\": \"The price shows a sideways consolidation pattern after an initial drop and partial recovery, with no clear higher highs or lower lows forming over the 4-hour period.\", \"price_action\": \"Candlesticks form a range-bound structure with alternating small bullish and bearish candles, lacking strong directional momentum or breakout signals.\", \"volume_oi\": \"Volume spikes early on during the drop but then diminishes and remains low, indicating reduced trading interest. Open Interest declines initially and then stabilizes, suggesting no strong new positions are being opened. Funding rate remains positive but trends slightly downward, indicating mixed trader sentiment.\", \"risk_assessment\": \"Risk is moderate due to lack of clear trend; potential for breakout remains but current consolidation suggests limited directional bias.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1130_20260123_1115.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.2953,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 70, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways movement with no clear higher highs or lower lows over the 4-hour period, indicating consolidation.\", \"price_action\": \"Candlesticks alternate between small bullish and bearish bodies with wicks on both ends, reflecting indecision and lack of strong directional momentum.\", \"volume_oi\": \"Volume decreases after initial spikes and remains relatively low, supporting lack of strong conviction. Open Interest declines initially then stabilizes with a slight uptick, indicating no strong new positions driving price.\", \"risk_assessment\": \"Risk is moderate as the market lacks clear trend direction; sudden volatility spikes could occur but overall price is range-bound.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1245_20260123_1230.png",
+    "actual_signal": "LONG",
+    "pct_change": 1.1495,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a recovery from a prior downtrend with a series of higher lows and a slight uptrend developing in the latter part of the chart, indicating a shift from bearish to bullish momentum.\", \"price_action\": \"There are multiple bullish candlesticks forming higher lows after the initial drop, including a notable bullish engulfing pattern around the middle of the chart, supporting upward momentum.\", \"volume_oi\": \"Volume spikes coincide with upward price moves, supporting buying interest. Open Interest initially declines but then stabilizes and begins to rise again, suggesting renewed long positions. Funding rates are positive and increasing, indicating bullish sentiment among traders.\", \"risk_assessment\": \"The risk lies in the prior downtrend and some recent lower highs, which could cause resistance. However, the rising funding rate and OI support a bullish bias. Stop loss should be tight to manage downside risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1300_20260123_1245.png",
+    "actual_signal": "LONG",
+    "pct_change": 0.9628,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.8, \"reasoning\": {\"market_context\": \"After an initial downtrend, the price formed a higher low around 88,500 USDT and started a recovery, indicating a potential trend reversal or at least a short-term bullish correction.\", \"price_action\": \"The candlesticks show a clear shift from lower lows to higher lows and higher highs after the dip, with several bullish candles pushing price back above 89,000 USDT, supporting a long bias.\", \"volume_oi\": \"Volume was relatively high during the initial dip but then decreased and stabilized as price consolidated, suggesting selling pressure was exhausted. Open Interest declined initially but then stabilized and began to rise slightly, indicating renewed trader interest supporting the upward move.\", \"risk_assessment\": \"The risk lies in the prior downtrend and the price still being below the earlier high near 90,000 USDT. Funding rates are positive and rising, which can add some bullish pressure but also risk if sentiment shifts.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1315_20260123_1300.png",
+    "actual_signal": "LONG",
+    "pct_change": 0.8959,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"After an initial downtrend, the price formed a clear higher low around 88850 and started a steady upward trend with higher highs and higher lows visible in the 15-minute candles.\", \"price_action\": \"Bullish candles with long lower wicks indicate buying pressure. The price broke above previous consolidation resistance near 89000, confirming a shift to bullish momentum.\", \"volume_oi\": \"Volume decreased during the initial downtrend but picked up slightly as price began rising, supporting the upward move. Open Interest initially declined but stabilized and then increased slightly, indicating renewed trader interest in longs. Funding rate remained positive and started to rise again, favoring long positions.\", \"risk_assessment\": \"Risk includes potential resistance near 89500-90000 and volume not showing a strong surge, which could limit upside. However, the trend structure and OI support reduce downside risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1345_20260123_1330.png",
+    "actual_signal": "LONG",
+    "pct_change": 1.6539,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a recovery from a recent dip around 88,500 USD and forms higher lows and higher highs after that, indicating an emerging uptrend.\", \"price_action\": \"There is a clear bullish engulfing pattern near the low point around 88,500 USD, followed by consecutive green candles pushing price above 89,000 USD, confirming buying pressure.\", \"volume_oi\": \"Volume spikes at the initial reversal point support strong buying interest. Open Interest decreases initially, indicating short covering, then stabilizes and starts to rise again, suggesting fresh longs entering. Funding rate remains positive and trends upward, reinforcing bullish sentiment.\", \"risk_assessment\": \"The risk lies in the prior volatility and the price still being below the recent high near 90,000 USD, which may act as resistance. However, volume and OI trends support continuation of the upward move.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1400_20260123_1345.png",
+    "actual_signal": "LONG",
+    "pct_change": 1.4169,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a recovery from a recent low around 88800 to a higher low near 88900, indicating a potential trend reversal or at least a short-term bullish bias within a consolidation range.\", \"price_action\": \"There is a visible formation of higher lows and a bounce off the support level near 88800, followed by a series of green candles pushing price back above 89000, signaling buying strength.\", \"volume_oi\": \"Volume spikes accompany the upward price moves, supporting the bullish momentum. Open Interest, after a decline, stabilizes and begins to rise again, suggesting renewed trader interest and potential new long positions. Funding rate is positive and rising, indicating a market bias towards longs.\", \"risk_assessment\": \"The price is still within a range and near resistance levels around 89500-90000, so a false breakout is possible. Volume is moderate, not extremely strong, so caution is warranted.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1430_20260123_1415.png",
+    "actual_signal": "LONG",
+    "pct_change": 1.328,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a recovery from a lower level near 88800 to a higher level near 89500, indicating a short-term uptrend after a dip, with higher lows forming in the latter part of the chart.\", \"price_action\": \"Several bullish candles with higher lows and higher highs appear after the initial dip, especially in the last 6-8 candles, signaling buyer strength and momentum building towards the upside.\", \"volume_oi\": \"Volume is relatively low but picks up slightly on bullish candles towards the end, supporting the upward move. Open Interest decreases initially but then stabilizes and starts to rise again, indicating renewed trader interest and potential fresh longs entering the market.\", \"risk_assessment\": \"Funding rate remains positive but declining, suggesting some caution as longs are paying shorts, which could limit upside. Volume is not very strong, so the move could be vulnerable to sudden reversals.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1445_20260123_1430.png",
+    "actual_signal": "LONG",
+    "pct_change": 1.9957,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 85, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a general consolidation with a slight upward bias after a minor dip, indicating potential for a bullish breakout.\", \"price_action\": \"There are higher lows forming in the 15-minute candles after the initial drop, with a few bullish engulfing candles around 01-23 10:00 to 12:00 supporting upward momentum.\", \"volume_oi\": \"Volume spikes towards the end of the chart coincide with bullish candles, suggesting buying interest. Open Interest, after a decline, starts to rise again from around 01-23 06:00, indicating fresh long positions being added.\", \"risk_assessment\": \"The funding rate is positive but declining slightly, which may reduce immediate pressure from short-sellers but still indicates a bullish market sentiment. The risk is medium due to recent volatility and the sharp volume spike at the end which could also signal a reversal if not confirmed.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1500_20260123_1445.png",
+    "actual_signal": "LONG",
+    "pct_change": 1.6974,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a consolidation phase with a slight upward bias after a minor pullback, indicating potential for a bullish continuation.\", \"price_action\": \"There are higher lows forming in the last several candles, and a notable bullish engulfing candle near the end of the chart suggests strong buying interest.\", \"volume_oi\": \"Volume spikes significantly on the last bullish candle, supporting the upward move. Open Interest, after a decline, starts to rise again, indicating fresh long positions being added.\", \"risk_assessment\": \"The recent sharp volume spike and price rejection from lower levels support the long direction, but the overall consolidation and previous volatility suggest a moderate risk of reversal.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1530_20260123_1515.png",
+    "actual_signal": "LONG",
+    "pct_change": 0.9726,
+    "teacher_response": "{\"signal\": \"LONG\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a general uptrend with higher highs and higher lows from the start of the chart until around 01-23 00:00, indicating bullish momentum before a minor pullback.\", \"price_action\": \"Multiple bullish candles with long lower wicks near the lows suggest strong buying pressure. The price rebounds after a pullback around 01-23 06:00, forming a higher low and then pushing higher.\", \"volume_oi\": \"Volume spikes accompany upward price moves, confirming buying interest. Open Interest initially declines but then rises sharply from around 01-23 06:00 onward, indicating fresh long positions being added. Funding rate remains positive and trends upward, supporting bullish sentiment.\", \"risk_assessment\": \"The minor pullback and some volatility near the end of the chart could cause short-term price fluctuations, but overall bullish signals dominate. Stop loss should be tight to manage risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1630_20260123_1615.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.2643,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price is moving sideways within a relatively narrow range between approximately $88,500 and $90,000, showing no clear breakout or sustained trend over the 4-hour period.\", \"price_action\": \"Candlesticks show alternating small-bodied candles with wicks on both sides, indicating indecision and lack of strong directional momentum. There are no clear higher highs or lower lows, confirming a consolidation phase.\", \"volume_oi\": \"Volume remains moderate without significant spikes supporting a breakout. Open Interest initially declines then stabilizes and slightly increases but without strong directional bias. Funding rate remains positive but relatively flat, indicating balanced long and short positions.\", \"risk_assessment\": \"Risk is moderate due to potential for sudden volatility spikes as seen in a few large wicks, but overall the consolidation suggests limited immediate directional risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1730_20260123_1715.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.5339,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The chart shows a recent peak near $90,900 followed by a series of lower highs and lower lows indicating a shift from a short-term uptrend to a downtrend.\", \"price_action\": \"There are multiple bearish candlesticks with long upper wicks near the peak, suggesting rejection of higher prices. The price failed to sustain above $90,500 and started declining, confirming bearish momentum.\", \"volume_oi\": \"Volume spikes accompany the downward candles, indicating strong selling pressure. Open Interest initially decreased during the early down move, showing liquidation of longs, then increased slightly as sellers added positions, supporting the short bias. Funding rate remains positive but shows a slight decline, suggesting reduced long dominance.\", \"risk_assessment\": \"The risk lies in a potential short-term bounce due to the recent volume surge and funding rate still above zero, but the overall structure and volume support a continuation of the short move.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1745_20260123_1730.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.5458,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a short-term uptrend followed by a clear reversal pattern with lower highs and lower lows starting around the middle of the chart, indicating a shift to bearish momentum.\", \"price_action\": \"There is a notable bearish engulfing candle after the peak near $91,000, followed by consecutive red candles forming lower highs and lower lows, signaling strong selling pressure.\", \"volume_oi\": \"Volume spikes on red candles suggest increased selling activity. Open Interest initially rises but then declines sharply as price drops, indicating liquidation of long positions and strengthening the bearish move. Funding rate remains positive but starts to decline, reducing bullish pressure.\", \"risk_assessment\": \"The risk lies in the initial strong bullish volume and funding rate still above zero, which could cause a short squeeze if buyers regain control. However, the clear reversal pattern and volume/OI dynamics favor the short direction.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1800_20260123_1745.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.4074,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a short-term downtrend with lower highs and lower lows from around 22:00 to 06:00, indicating bearish pressure before a late rebound.\", \"price_action\": \"Several bearish candlesticks with long upper wicks and a breakdown below recent support levels around 89,000 USDT suggest selling pressure. The late sharp spike up appears as a potential short-term exhaustion or fakeout.\", \"volume_oi\": \"Volume increases notably during the late price spike but then volume remains elevated on red candles afterward, supporting selling interest. Open Interest initially declines, indicating position closures, then rises sharply before dropping again, suggesting short covering followed by renewed selling.\", \"risk_assessment\": \"The late strong price spike and rising funding rate near 0.5% could trigger short-term volatility and potential short squeezes, increasing risk. However, the overall bearish structure and volume support the short bias.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1830_20260123_1815.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.2816,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The chart shows a recent downtrend with lower highs and lower lows forming before a brief consolidation, indicating bearish momentum.\", \"price_action\": \"Multiple red candles with long bodies appear after a failed attempt to break higher, confirming selling pressure. The price fails to sustain above the $90,000 level and starts dropping.\", \"volume_oi\": \"Volume spikes on red candles suggest strong selling interest. Open Interest initially decreases, indicating short covering or liquidation, then rises again, supporting renewed short positions. Funding rate remains positive but starts to decline, reducing long bias.\", \"risk_assessment\": \"The risk lies in the brief price spike near the end of the chart, which could trigger stop losses. However, overall bearish signals and volume support reduce this risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1845_20260123_1830.png",
+    "actual_signal": "SHORT",
+    "pct_change": -1.2785,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The price shows a lower high formation after a brief upward move, indicating a potential reversal from the prior uptrend. The overall trend in the 15m timeframe is shifting towards lower highs and lower lows before the final spike up.\", \"price_action\": \"There is a clear bearish engulfing pattern around the middle of the chart followed by consecutive red candles forming lower highs and lower lows, signaling selling pressure.\", \"volume_oi\": \"Volume spikes coincide with the downward price moves, confirming selling interest. Open Interest initially decreases, indicating liquidation of long positions, then slightly rises but fails to push price higher, supporting bearish sentiment.\", \"risk_assessment\": \"The late strong upward spike with high volume could trigger a short-term stop loss if price breaks above the recent high, but the overall structure supports a short bias.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_1915_20260123_1900.png",
+    "actual_signal": "SHORT",
+    "pct_change": -0.7692,
+    "teacher_response": "{\"signal\": \"SHORT\", \"confidence\": 75, \"stop_loss_pct\": -0.8, \"take_profit_pct\": 1.5, \"reasoning\": {\"market_context\": \"The overall trend shows a recent peak near $91,000 followed by a sharp rejection and a series of lower highs and lower lows in the last several candles, indicating a shift from bullish to bearish momentum.\", \"price_action\": \"The candlestick pattern near the peak includes a strong bearish engulfing candle followed by consecutive red candles, signaling sellers taking control. The price failed to sustain above $90,500 and reversed sharply.\", \"volume_oi\": \"Volume spikes during the price drop confirm strong selling pressure. Open Interest initially rose with the price increase but then sharply declined as the price dropped, suggesting liquidation of long positions and increased bearish conviction.\", \"risk_assessment\": \"The risk lies in potential short-term bounces due to the recent strong volume and the funding rate remaining positive but declining, which could attract some buyers. However, the clear rejection at the high and volume support for the drop reduce this risk.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_2045_20260123_2030.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.0728,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.7, \"take_profit_pct\": 0.7, \"reasoning\": {\"market_context\": \"The price shows a sideways movement with no clear sustained trend, oscillating between approximately $88,900 and $90,800 over the 4-hour period, indicating consolidation.\", \"price_action\": \"Candlesticks form a series of small-bodied candles with alternating bullish and bearish closes, lacking strong directional momentum or clear higher highs/lows or lower highs/lows.\", \"volume_oi\": \"Volume spikes are present but do not lead to sustained price moves, while Open Interest initially rises then sharply declines, suggesting uncertainty and lack of strong commitment from traders. Funding rate remains positive but trends downward, indicating diminishing bullish pressure.\", \"risk_assessment\": \"Risk is moderate due to potential for breakout in either direction, but current indicators favor range-bound behavior rather than trending, so tight stops and modest profit targets are appropriate.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260122_2230_20260123_2215.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": -0.0975,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways range between approximately $88,800 and $90,800, without establishing clear higher highs or lower lows, indicating consolidation.\", \"price_action\": \"Candlesticks alternate between bullish and bearish with no sustained directional momentum. There are multiple small-bodied candles and doji-like patterns suggesting indecision.\", \"volume_oi\": \"Volume spikes occur but are not consistently aligned with strong price moves, indicating lack of conviction. Open Interest rises initially but then sharply declines, showing reduced trader participation and uncertainty.\", \"risk_assessment\": \"The lack of a clear trend and mixed signals from volume and OI increase the risk of false breakouts. A tight stop loss is recommended due to potential volatility within the range.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260123_0030_20260124_0015.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.2984,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways movement after a volatile spike and retracement, indicating consolidation rather than a clear trend.\", \"price_action\": \"Candlesticks form a range between roughly $89,000 and $90,000 with no sustained higher highs or lower lows over the 16 candles, reflecting indecision.\", \"volume_oi\": \"Volume spikes correspond with the price spike but then taper off during consolidation. Open Interest rises initially but then declines sharply, suggesting reduced new positions and less directional conviction.\", \"risk_assessment\": \"The recent volatility and volume spikes increase risk, but the subsequent consolidation and declining OI reduce momentum risk, supporting a neutral stance.\"}, \"risk_level\": \"MEDIUM\"}"
+  },
+  {
+    "image": "chart_20260123_0230_20260124_0215.png",
+    "actual_signal": "NEUTRAL",
+    "pct_change": 0.053,
+    "teacher_response": "{\"signal\": \"NEUTRAL\", \"confidence\": 75, \"stop_loss_pct\": -0.5, \"take_profit_pct\": 0.5, \"reasoning\": {\"market_context\": \"The price shows a sideways consolidation after a volatile move, with no clear higher highs or lower lows forming over the observed period.\", \"price_action\": \"Candlesticks form small-bodied candles with alternating red and green colors, indicating indecision and lack of strong directional momentum.\", \"volume_oi\": \"Volume spikes during initial volatility but then tapers off, while Open Interest peaks and then declines sharply, suggesting reduced trader commitment and no strong directional bias. Funding rate remains slightly positive but trends downward, indicating fading bullish pressure.\", \"risk_assessment\": \"Risk is moderate due to prior volatility and volume spikes, but current consolidation and declining OI reduce the likelihood of a strong breakout in either direction.\"}, \"risk_level\": \"MEDIUM\"}"
+  }
+]

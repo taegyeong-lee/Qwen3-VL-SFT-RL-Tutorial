@@ -133,13 +133,17 @@ accelerate launch --num_processes 2 dpo/train.py --config dpo/configs/multi.yaml
 ## Inference & Evaluation
 
 ```bash
-# 단일 이미지 예측
-python inference/predict.py --image data/chart_images/sample.png
-python inference/predict.py --adapter outputs/dpo_lora/final --image data/chart_images/sample.png
+# 테스트셋 이미지 + 정답 라벨 추출
+python inference/extract_testset.py
+python inference/extract_testset.py --max-samples 50
 
-# 테스트셋 평가
+# 단일 이미지 예측
+python inference/predict.py --image data/testset/chart_xxx.png
+python inference/predict.py --adapter outputs/sft_lora/final --image data/testset/chart_xxx.png
+
+# 테스트셋 일괄 평가
 python inference/evaluate.py --adapter outputs/sft_lora/final
-python inference/evaluate.py --adapter outputs/dpo_lora/final
+python inference/evaluate.py --adapter outputs/sft_lora/final --max-eval 50
 
 # SFT vs DPO 비교
 python inference/compare.py

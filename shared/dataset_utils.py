@@ -63,17 +63,21 @@ def _parse_entry(entry: dict) -> dict | None:
             result["metadata"] = entry["metadata"]
         return result
 
-    # --- Old format: messages with embedded image ---
+    # --- Old format: messages + images ---
     messages = entry.get("messages")
     if not messages:
         return None
 
+    # 이미지 경로: entry["images"] 또는 messages 내 item["image"]
     image_path = None
-    for msg in messages:
-        if msg["role"] == "user" and isinstance(msg["content"], list):
-            for item in msg["content"]:
-                if item.get("type") == "image":
-                    image_path = os.path.join(PROJECT_ROOT, item["image"])
+    if "images" in entry and entry["images"]:
+        image_path = os.path.join(PROJECT_ROOT, entry["images"][0])
+    else:
+        for msg in messages:
+            if msg["role"] == "user" and isinstance(msg["content"], list):
+                for item in msg["content"]:
+                    if item.get("type") == "image" and "image" in item:
+                        image_path = os.path.join(PROJECT_ROOT, item["image"])
 
     if not image_path or not os.path.exists(image_path):
         return None
