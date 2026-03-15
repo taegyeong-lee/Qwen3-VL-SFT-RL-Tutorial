@@ -10,7 +10,7 @@ fsdp_config:
   fsdp_activation_checkpointing: true  # ⚡ gradient_checkpointing 대신 FSDP에서 처리
   fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
   fsdp_cpu_ram_efficient_loading: true
-  fsdp_offload_params: true   # GPU 메모리 절약
+  fsdp_offload_params: false   # GPU 메모리 절약
   fsdp_reshard_after_forward: true
   fsdp_state_dict_type: FULL_STATE_DICT
   fsdp_version: 2
