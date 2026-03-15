@@ -1,39 +1,40 @@
 """
-Compare SFT vs DPO vs GRPO models on the same test set.
+Compare SFT vs DPO models on the same test set (transformers + PEFT).
 
 Usage:
   python inference/compare.py
   python inference/compare.py --max-eval 50
-  python inference/compare.py --adapters outputs/sft_lora/final outputs/dpo_lora/final outputs/grpo_lora/final
+  python inference/compare.py --adapters outputs/sft_lora/final outputs/dpo_lora/final
 """
 
 import os
 import sys
-import json
 import argparse
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import torch
+from transformers import AutoModelForImageTextToText, AutoProcessor
+from peft import PeftModel
+
 from shared.dataset_utils import load_dataset_splits
-from inference.predict import (
-    load_model_unsloth, predict_unsloth, parse_output,
-)
+from inference.predict import predict, parse_output, DEFAULT_MODEL
 
 
-def evaluate_adapter(model, tokenizer, test_dataset, adapter_path: str, max_eval: int = None) -> dict:
-    """Evaluate a single adapter and return metrics."""
+def evaluate_adapter(base_model, processor, test_dataset, adapter_path: str, max_eval: int = None) -> dict:
+    """Load adapter onto base model, evaluate, then unload."""
     name = os.path.basename(os.path.dirname(adapter_path))
 
-    # Load adapter
     if os.path.exists(adapter_path):
-        model.load_adapter(adapter_path)
+        model = PeftModel.from_pretrained(base_model, adapter_path)
+        model.eval()
+    else:
+        print(f"  Adapter not found: {adapter_path}, using base model")
+        model = base_model
 
-    from unsloth import FastVisionModel
-    FastVisionModel.for_inference(model)
-
-    predict_fn = lambda img: predict_unsloth(model, tokenizer, img)
+    predict_fn = lambda img: predict(model, processor, img)
 
     total = 0
     correct = 0
@@ -68,6 +69,12 @@ def evaluate_adapter(model, tokenizer, test_dataset, adapter_path: str, max_eval
         confusion[actual_signal][predicted] += 1
 
     accuracy = (correct / total * 100) if total > 0 else 0
+
+    # Unload adapter to reuse base model
+    if isinstance(model, PeftModel):
+        del model
+        torch.cuda.empty_cache()
+
     return {
         "name": name,
         "adapter": adapter_path,
@@ -80,19 +87,17 @@ def evaluate_adapter(model, tokenizer, test_dataset, adapter_path: str, max_eval
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compare SFT vs DPO vs GRPO")
-    parser.add_argument("--model", type=str,
-                        default="unsloth/Qwen3-VL-8B-Instruct-unsloth-bnb-4bit")
+    parser = argparse.ArgumentParser(description="Compare SFT vs DPO")
+    parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
     parser.add_argument("--adapters", nargs="+", default=None,
                         help="List of adapter paths to compare")
-    parser.add_argument("--no-4bit", dest="load_4bit", action="store_false", default=True)
     parser.add_argument("--max-eval", type=int, default=None)
     args = parser.parse_args()
 
     # Default adapters
     if args.adapters is None:
         args.adapters = []
-        for name in ["sft_lora", "dpo_lora", "grpo_lora"]:
+        for name in ["sft_lora", "dpo_lora"]:
             path = os.path.join(PROJECT_ROOT, "outputs", name, "final")
             if os.path.exists(path):
                 args.adapters.append(path)
@@ -102,14 +107,17 @@ def main():
         return
 
     print("=" * 60)
-    print("Model Comparison: SFT vs DPO vs GRPO")
+    print("Model Comparison")
     print(f"Adapters: {len(args.adapters)}")
     print("=" * 60)
 
     # Load base model once
-    from unsloth import FastVisionModel
-    model, tokenizer = FastVisionModel.from_pretrained(
-        args.model, load_in_4bit=args.load_4bit,
+    print(f"Loading base model: {args.model}")
+    processor = AutoProcessor.from_pretrained(args.model)
+    base_model = AutoModelForImageTextToText.from_pretrained(
+        args.model,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
     )
 
     _, _, test_dataset = load_dataset_splits()
@@ -118,7 +126,7 @@ def main():
     for adapter_path in args.adapters:
         abs_path = os.path.join(PROJECT_ROOT, adapter_path) if not os.path.isabs(adapter_path) else adapter_path
         print(f"\n--- Evaluating: {abs_path} ---")
-        r = evaluate_adapter(model, tokenizer, test_dataset, abs_path, args.max_eval)
+        r = evaluate_adapter(base_model, processor, test_dataset, abs_path, args.max_eval)
         results.append(r)
 
     # Summary table

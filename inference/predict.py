@@ -1,13 +1,10 @@
 """
-Single image prediction with fine-tuned Qwen VL.
+Single image prediction with fine-tuned Qwen VL (transformers + PEFT).
 
 Usage:
-  # Unsloth (RTX 3060)
-  python inference/predict.py --image chart_images/sample.png
-  python inference/predict.py --adapter outputs/grpo_lora/final --image chart_images/sample.png
-
-  # vLLM (A100)
-  python inference/predict.py --backend vllm --model outputs/sft_merged --image chart_images/sample.png
+  python inference/predict.py --image data/chart_images/sample.png
+  python inference/predict.py --adapter outputs/sft_lora/final --image data/chart_images/sample.png
+  python inference/predict.py --adapter outputs/dpo_lora/final --image data/chart_images/sample.png
 """
 
 import os
@@ -19,7 +16,10 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import torch
 from PIL import Image
+from transformers import AutoModelForImageTextToText, AutoProcessor
+from peft import PeftModel
 
 SYSTEM_PROMPT = (
     "You are a professional Bitcoin futures trader. "
@@ -30,79 +30,47 @@ USER_PROMPT = (
     "Respond in JSON."
 )
 
+DEFAULT_MODEL = "Qwen/Qwen3-VL-4B-Instruct"
 
-def load_model_unsloth(base_model: str, adapter_path: str, load_in_4bit: bool = True):
-    from unsloth import FastVisionModel
 
-    print(f"[Unsloth] Loading model: {base_model}")
-    model, tokenizer = FastVisionModel.from_pretrained(
-        base_model, load_in_4bit=load_in_4bit,
+def load_model(base_model: str, adapter_path: str = None):
+    """Load base model + optional LoRA adapter."""
+    print(f"Loading model: {base_model}")
+    processor = AutoProcessor.from_pretrained(base_model)
+    model = AutoModelForImageTextToText.from_pretrained(
+        base_model,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
     )
+
     if adapter_path and os.path.exists(adapter_path):
         print(f"Loading LoRA adapter: {adapter_path}")
-        model.load_adapter(adapter_path)
-        if not load_in_4bit:
-            model = model.to("cuda")
-    FastVisionModel.for_inference(model)
-    return model, tokenizer
+        model = PeftModel.from_pretrained(model, adapter_path)
+
+    model.eval()
+    return model, processor
 
 
-def predict_unsloth(model, tokenizer, image) -> str:
+def predict(model, processor, image) -> str:
+    """Run inference on a single image."""
     if isinstance(image, str):
         image = Image.open(image).convert("RGB")
 
     messages = [
-        {"role": "system", "content": [{"type": "text", "text": SYSTEM_PROMPT}]},
+        {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": [
-            {"type": "image"},
+            {"type": "image", "image": image},
             {"type": "text", "text": USER_PROMPT},
         ]},
     ]
-    text = tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-    inputs = tokenizer(images=[image], text=text, return_tensors="pt")
-    inputs = inputs.to(model.device)
+    text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(text=[text], images=[image], return_tensors="pt").to(model.device)
 
-    import torch
     with torch.no_grad():
         generated_ids = model.generate(**inputs, max_new_tokens=512)
 
-    generated_ids_trimmed = [
-        out_ids[len(in_ids):] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-    ]
-    return tokenizer.batch_decode(
-        generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-    )[0]
-
-
-def load_model_vllm(model_path: str):
-    from vllm import LLM, SamplingParams
-
-    print(f"[vLLM] Loading model: {model_path}")
-    llm = LLM(
-        model=model_path,
-        dtype="bfloat16",
-        max_model_len=4096,
-        trust_remote_code=True,
-    )
-    sampling_params = SamplingParams(max_tokens=512, temperature=0)
-    return llm, sampling_params
-
-
-def predict_vllm(llm, sampling_params, image) -> str:
-    if isinstance(image, str):
-        image = Image.open(image).convert("RGB")
-
-    prompt = (
-        f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
-        f"<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>"
-        f"{USER_PROMPT}<|im_end|>\n"
-        f"<|im_start|>assistant\n"
-    )
-    outputs = llm.generate(
-        [{"prompt": prompt, "multi_modal_data": {"image": image}}],
-        sampling_params=sampling_params,
-    )
-    return outputs[0].outputs[0].text
+    trimmed = generated_ids[0][inputs["input_ids"].shape[1]:]
+    return processor.decode(trimmed, skip_special_tokens=True)
 
 
 def parse_output(output_text: str) -> dict:
@@ -117,33 +85,18 @@ def parse_output(output_text: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Single image prediction")
-    parser.add_argument("--backend", type=str, default="unsloth", choices=["unsloth", "vllm"])
-    parser.add_argument("--model", type=str, default=None)
+    parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
     parser.add_argument("--adapter", type=str, default=None)
-    parser.add_argument("--no-4bit", dest="load_4bit", action="store_false", default=True)
     parser.add_argument("--image", type=str, required=True)
     args = parser.parse_args()
 
-    # Default model/adapter
-    if args.model is None:
-        if args.backend == "vllm":
-            args.model = os.path.join(PROJECT_ROOT, "outputs", "sft_merged")
-        else:
-            args.model = "unsloth/Qwen3-VL-8B-Instruct-unsloth-bnb-4bit"
     if args.adapter is None:
         args.adapter = os.path.join(PROJECT_ROOT, "outputs", "sft_lora", "final")
 
-    # Load model
-    if args.backend == "vllm":
-        llm, sampling_params = load_model_vllm(args.model)
-        predict_fn = lambda img: predict_vllm(llm, sampling_params, img)
-    else:
-        adapter = args.adapter if args.adapter and os.path.exists(args.adapter) else None
-        model, tokenizer = load_model_unsloth(args.model, adapter, args.load_4bit)
-        predict_fn = lambda img: predict_unsloth(model, tokenizer, img)
+    model, processor = load_model(args.model, args.adapter)
 
     image_path = os.path.join(PROJECT_ROOT, args.image) if not os.path.isabs(args.image) else args.image
-    result = parse_output(predict_fn(image_path))
+    result = parse_output(predict(model, processor, image_path))
 
     print("\n" + "=" * 60)
     print("Prediction Result")

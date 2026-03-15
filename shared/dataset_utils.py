@@ -16,7 +16,7 @@ from PIL import Image
 from torch.utils.data import Dataset as TorchDataset
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATASET_PATH = os.path.join(PROJECT_ROOT, "data", "dataset.jsonl")
+DATASET_PATH = os.path.join(PROJECT_ROOT, "data", "teacher", "dataset.jsonl")
 
 
 class VLMDataset(TorchDataset):
