@@ -2,10 +2,10 @@
 outputs/
 
 # ── 대용량 (재생성 가능) ──
-data/chart_images/
-data/teacher/batch_parts/
-data/teacher/batch_state.json
-data/dpo_pairs.jsonl
+# data/chart_images/
+# data/teacher/batch_parts/
+# data/teacher/batch_state.json
+# data/dpo_pairs.jsonl
 
 # ── 환경 ──
 .env

@@ -1,0 +1,40 @@
+{
+  "batches": [
+    {
+      "file": "batch_part_000.jsonl",
+      "batch_id": "batch_69ac1846a85c8190ac78f48a2677ba4f",
+      "downloaded": true,
+      "result_count": 1030
+    },
+    {
+      "file": "batch_part_001.jsonl",
+      "batch_id": "batch_69ac188948a4819094a0ae20a212e4ab",
+      "downloaded": true,
+      "result_count": 996
+    },
+    {
+      "file": "batch_part_002.jsonl",
+      "batch_id": "batch_69ac18ccd4648190af44cc747da8ccc8",
+      "downloaded": true,
+      "result_count": 1006
+    },
+    {
+      "file": "batch_part_003.jsonl",
+      "batch_id": "batch_69ac191122108190baaac794d32e0ff3",
+      "downloaded": true,
+      "result_count": 1000
+    },
+    {
+      "file": "batch_part_004.jsonl",
+      "batch_id": "batch_69ac1955a92c819080495b55a45a7462",
+      "downloaded": true,
+      "result_count": 997
+    },
+    {
+      "file": "batch_part_005.jsonl",
+      "batch_id": "batch_69ac1996a0a08190ac85718308f40f38",
+      "downloaded": true,
+      "result_count": 971
+    }
+  ]
+}
