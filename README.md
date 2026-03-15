@@ -12,8 +12,13 @@ Qwen3-VL-4B 비전 언어 모델을 SFT → DPO 순서로 파인튜닝하여 BTC
 ### 1. 환경 생성
 
 ```bash
+# conda
 conda create -n btc python=3.11 -y
 conda activate btc
+
+# Docker 등 conda가 없는 환경
+python3.11 -m venv ~/btc_env
+source ~/btc_env/bin/activate
 ```
 
 ### 2. PyTorch 설치 (CUDA 버전에 맞게)
@@ -196,13 +201,17 @@ python inference/predict.py --adapter outputs/sft_lora/final --image data/testse
 python inference/evaluate.py --adapter outputs/sft_lora/final
 python inference/evaluate.py --adapter outputs/sft_lora/final --max-eval 50
 
+# 이미지 로딩 체크 (학습/평가 전 이미지가 제대로 들어가는지 확인)
+python inference/evaluate_all.py --checkpoints-dir outputs/sft_lora --check-image
+python inference/evaluate_all_vllm_v2.py --models-dir outputs/merged --check-image
+
 # 모든 체크포인트 한번에 평가 (precision/recall/F1 포함)
 python inference/evaluate_all.py --checkpoints-dir outputs/sft_lora
 python inference/evaluate_all.py --checkpoints-dir outputs/sft_lora --max-eval 50
 
 # vLLM으로 빠르게 평가 (LoRA 머지 필요)
 python inference/merge_lora.py --checkpoints-dir outputs/sft_lora --output-dir outputs/merged
-python inference/evaluate_all_vllm.py --models-dir outputs/merged
+python inference/evaluate_all_vllm_v2.py --models-dir outputs/merged
 
 # SFT vs DPO 비교
 python inference/compare.py

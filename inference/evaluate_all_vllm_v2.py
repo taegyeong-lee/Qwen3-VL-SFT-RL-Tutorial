@@ -16,6 +16,9 @@ Usage:
   python inference/evaluate_all_vllm_v2.py --models-dir outputs/merged --chunk-size 200
 """
 
+import multiprocessing
+multiprocessing.set_start_method("spawn", force=True)
+
 import os
 import sys
 import json

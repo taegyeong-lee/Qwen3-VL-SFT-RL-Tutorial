@@ -17,6 +17,9 @@ Usage:
   python inference/evaluate_all_vllm.py --models-dir outputs/merged --check-image
 """
 
+import multiprocessing
+multiprocessing.set_start_method("spawn", force=True)
+
 import os
 import sys
 import json
