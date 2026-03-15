@@ -12,6 +12,9 @@ Usage:
   # 머지된 모델들로 평가
   python inference/evaluate_all_vllm.py --models-dir outputs/merged
   python inference/evaluate_all_vllm.py --models-dir outputs/merged --max-eval 50
+
+  # 이미지 로딩 체크
+  python inference/evaluate_all_vllm.py --models-dir outputs/merged --check-image
 """
 
 import os
@@ -73,10 +76,7 @@ def evaluate_model_vllm(model_path: str, test_dataset, max_eval: int = None) -> 
     # 배치 요청 생성
     requests = []
     for idx, image, actual_signal, metadata in samples:
-        if isinstance(image, str):
-            img = Image.open(image).convert("RGB")
-        else:
-            img = image
+        img = image if isinstance(image, Image.Image) else Image.open(image).convert("RGB")
         prompt = build_prompt(img)
         requests.append({
             "prompt": prompt,
@@ -160,11 +160,68 @@ def find_models(models_dir: str) -> list:
     return candidates
 
 
+def check_image_vllm(test_dataset, model_path: str):
+    """vLLM으로 이미지 로딩 체크. 첫 3개 샘플로 이미지가 제대로 들어가는지 확인."""
+    from vllm import LLM, SamplingParams
+
+    print("=" * 60)
+    print("Image Check Mode (vLLM)")
+    print("=" * 60)
+
+    n = min(3, len(test_dataset))
+    samples = []
+    for i in range(n):
+        sample = test_dataset[i]
+        img = sample["images"][0]  # PIL.Image (lazy loaded)
+        metadata = sample.get("metadata", {})
+        actual = metadata.get("actual_signal", "?")
+
+        print(f"\n--- Sample {i+1}/{n} ---")
+        print(f"Size: {img.size}, Mode: {img.mode}")
+        print(f"Actual signal: {actual}")
+        samples.append((img, actual))
+
+    print(f"\nLoading vLLM model: {model_path}")
+    llm = LLM(
+        model=model_path,
+        dtype="bfloat16",
+        max_model_len=4096,
+        trust_remote_code=True,
+        gpu_memory_utilization=0.9,
+    )
+    sampling_params = SamplingParams(max_tokens=256, temperature=0)
+
+    # Describe image로 테스트
+    describe_prompt = (
+        "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
+        "<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>"
+        "Describe this image in detail.<|im_end|>\n"
+        "<|im_start|>assistant\n"
+    )
+    requests = [{"prompt": describe_prompt, "multi_modal_data": {"image": img}} for img, _ in samples]
+    outputs = llm.generate(requests, sampling_params=sampling_params)
+
+    for i, ((img, actual), output) in enumerate(zip(samples, outputs)):
+        response = output.outputs[0].text
+        print(f"\n--- Sample {i+1} (actual={actual}) ---")
+        print(f"Response: {response[:300]}{'...' if len(response) > 300 else ''}")
+
+    del llm
+    import torch
+    torch.cuda.empty_cache()
+
+    print(f"\n{'=' * 60}")
+    print("Image check passed!")
+    print("=" * 60)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate all models with vLLM")
     parser.add_argument("--models-dir", type=str, required=True, help="Directory with merged models")
     parser.add_argument("--max-eval", type=int, default=None)
     parser.add_argument("--save-dir", type=str, default=os.path.join(PROJECT_ROOT, "outputs", "eval_results"))
+    parser.add_argument("--check-image", action="store_true",
+                        help="평가 없이 이미지 로딩 + 모델 인식 체크만 수행")
     args = parser.parse_args()
 
     models_dir = os.path.join(PROJECT_ROOT, args.models_dir) if not os.path.isabs(args.models_dir) else args.models_dir
@@ -185,8 +242,12 @@ def main():
 
     _, _, test_dataset = load_dataset_splits()
 
+    if args.check_image:
+        check_image_vllm(test_dataset, models[0][2])
+        return
+
     all_results = []
-    for step, name, path in models:
+    for _, name, path in models:
         print(f"\n{'='*60}")
         print(f"Evaluating: {name}")
         print(f"{'='*60}")
