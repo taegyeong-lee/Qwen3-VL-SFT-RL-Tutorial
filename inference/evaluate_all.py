@@ -1,15 +1,15 @@
 """
-모든 체크포인트를 한번에 평가.
+모든 체크포인트를 한번에 평가 (배치 인퍼런스 지원).
 
 Usage:
   python inference/evaluate_all.py --checkpoints-dir outputs/sft_lora
   python inference/evaluate_all.py --checkpoints-dir outputs/sft_lora --max-eval 50
+  python inference/evaluate_all.py --checkpoints-dir outputs/sft_lora --batch-size 8
 """
 
 import os
 import sys
 import json
-import glob
 import argparse
 from datetime import datetime
 
@@ -18,11 +18,12 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 import torch
+from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor
 from peft import PeftModel
 
 from shared.dataset_utils import load_dataset_splits
-from inference.predict import predict, parse_output, DEFAULT_MODEL
+from inference.predict import parse_output, DEFAULT_MODEL, SYSTEM_PROMPT, USER_PROMPT
 
 
 def find_checkpoints(checkpoints_dir: str) -> list:
@@ -45,12 +46,47 @@ def find_checkpoints(checkpoints_dir: str) -> list:
     return candidates
 
 
-def evaluate_checkpoint(base_model, processor, test_dataset, adapter_path: str, max_eval: int = None) -> dict:
+def batch_predict(model, processor, images: list) -> list:
+    """배치 인퍼런스. 여러 이미지를 한번에 처리."""
+    texts = []
+    pil_images = []
+
+    for img in images:
+        if isinstance(img, str):
+            img = Image.open(img).convert("RGB")
+        pil_images.append(img)
+
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": [
+                {"type": "image", "image": img},
+                {"type": "text", "text": USER_PROMPT},
+            ]},
+        ]
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        texts.append(text)
+
+    inputs = processor(text=texts, images=pil_images, return_tensors="pt", padding=True).to(model.device)
+
+    with torch.no_grad():
+        generated_ids = model.generate(**inputs, max_new_tokens=512)
+
+    # 각 샘플에서 입력 토큰 이후만 디코딩
+    outputs = []
+    for i in range(len(images)):
+        input_len = inputs["input_ids"][i].ne(processor.tokenizer.pad_token_id).sum().item()
+        trimmed = generated_ids[i][input_len:]
+        decoded = processor.decode(trimmed, skip_special_tokens=True)
+        outputs.append(decoded)
+
+    return outputs
+
+
+def evaluate_checkpoint(base_model, processor, test_dataset, adapter_path: str,
+                        max_eval: int = None, batch_size: int = 1) -> dict:
     """단일 체크포인트 평가."""
     model = PeftModel.from_pretrained(base_model, adapter_path)
     model.eval()
-
-    predict_fn = lambda img: predict(model, processor, img)
 
     total = 0
     correct = 0
@@ -64,44 +100,59 @@ def evaluate_checkpoint(base_model, processor, test_dataset, adapter_path: str, 
     if max_eval:
         n = min(n, max_eval)
 
+    # 데이터 준비
+    samples = []
     for i in range(n):
         sample = test_dataset[i]
-        image = sample["images"][0]
         metadata = sample.get("metadata", {})
         actual_signal = metadata.get("actual_signal")
+        if actual_signal:
+            samples.append((i, sample["images"][0], actual_signal, metadata))
 
-        if not actual_signal:
-            continue
+    # 배치 단위 처리
+    for batch_start in range(0, len(samples), batch_size):
+        batch = samples[batch_start:batch_start + batch_size]
+        batch_images = [s[1] for s in batch]
 
-        raw_output = predict_fn(image)
-        result = parse_output(raw_output)
-        predicted = result.get("signal", "?")
-        total += 1
-
-        is_correct = False
-        if predicted not in ("LONG", "SHORT", "NEUTRAL"):
-            parse_fail += 1
+        if batch_size > 1:
+            try:
+                raw_outputs = batch_predict(model, processor, batch_images)
+            except Exception:
+                # 배치 실패 시 하나씩 처리
+                from inference.predict import predict
+                raw_outputs = [predict(model, processor, img) for img in batch_images]
         else:
-            is_correct = predicted == actual_signal
-            if is_correct:
-                correct += 1
-            confusion[actual_signal][predicted] += 1
+            from inference.predict import predict
+            raw_outputs = [predict(model, processor, batch_images[0])]
 
-        results.append({
-            "index": i,
-            "actual_signal": actual_signal,
-            "predicted_signal": predicted,
-            "correct": is_correct,
-            "response": result,
-        })
+        for j, (idx, image, actual_signal, metadata) in enumerate(batch):
+            raw_output = raw_outputs[j]
+            result = parse_output(raw_output)
+            predicted = result.get("signal", "?")
+            total += 1
 
-        mark = "O" if is_correct else "X"
-        status = f"pred={predicted} actual={actual_signal} {mark}" if predicted in ("LONG", "SHORT", "NEUTRAL") else f"PARSE FAIL: {predicted}"
-        print(f"  [{i+1}/{n}] {status}")
+            is_correct = False
+            if predicted not in ("LONG", "SHORT", "NEUTRAL"):
+                parse_fail += 1
+                print(f"  [{total}/{len(samples)}] PARSE FAIL: {predicted}")
+            else:
+                is_correct = predicted == actual_signal
+                if is_correct:
+                    correct += 1
+                confusion[actual_signal][predicted] += 1
+                mark = "O" if is_correct else "X"
+                print(f"  [{total}/{len(samples)}] pred={predicted} actual={actual_signal} {mark}")
+
+            results.append({
+                "index": idx,
+                "actual_signal": actual_signal,
+                "predicted_signal": predicted,
+                "correct": is_correct,
+                "response": result,
+            })
 
     accuracy = correct / total * 100 if total > 0 else 0
 
-    # adapter 해제
     del model
     torch.cuda.empty_cache()
 
@@ -120,6 +171,7 @@ def main():
     parser.add_argument("--checkpoints-dir", type=str, required=True)
     parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
     parser.add_argument("--max-eval", type=int, default=None)
+    parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--save-dir", type=str, default=os.path.join(PROJECT_ROOT, "outputs", "eval_results"))
     args = parser.parse_args()
 
@@ -134,6 +186,7 @@ def main():
     print(f"Evaluate All Checkpoints")
     print(f"Dir: {checkpoints_dir}")
     print(f"Found: {[name for _, name, _ in checkpoints]}")
+    print(f"Batch size: {args.batch_size}")
     print(f"Max eval: {args.max_eval or 'all'}")
     print("=" * 60)
 
@@ -154,7 +207,7 @@ def main():
         print(f"Evaluating: {name} ({path})")
         print(f"{'='*60}")
 
-        metrics = evaluate_checkpoint(base_model, processor, test_dataset, path, args.max_eval)
+        metrics = evaluate_checkpoint(base_model, processor, test_dataset, path, args.max_eval, args.batch_size)
         metrics["name"] = name
         metrics["path"] = path
         all_results.append(metrics)
@@ -182,6 +235,7 @@ def main():
         "timestamp": timestamp,
         "checkpoints_dir": checkpoints_dir,
         "max_eval": args.max_eval,
+        "batch_size": args.batch_size,
         "summary": [{
             "name": r["name"],
             "accuracy": r["accuracy"],
