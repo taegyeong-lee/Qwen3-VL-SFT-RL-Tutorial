@@ -2,94 +2,8 @@
 
 Qwen3-VL-4B 비전 언어 모델을 SFT → DPO 순서로 파인튜닝하여 BTC 15분봉 차트 이미지를 분석하고 매매 신호(LONG/SHORT/NEUTRAL)를 예측하는 튜토리얼.
 
-## 현재 데이터셋 구축까지 업데이트 완료 [2025.03.14]
+- 현재 데이터셋 구축까지 업데이트 완료 [2025.03.14]
 
-## Pipeline Overview
-
-```
-btc_trading_view.csv
-    │
-    ▼
-[0] 차트 이미지 생성 ──→ data/chart_images/*.png + window_meta.json
-    │
-    ▼
-[1~2] GPT-4.1-mini Batch API ──→ batch_results.jsonl
-    │
-    ▼
-[3] 데이터셋 빌드 ──→ data/teacher/dataset.jsonl
-    │
-    ├──→ [SFT]  sft/train.py ──→ outputs/sft_lora/final/
-    │      │
-    │      └──→ [DPO]  grpo/merge_sft.py (LoRA 머지)
-    │                  dpo/build_pairs.py (vLLM 샘플링 → chosen/rejected)
-    │                  dpo/train.py ──→ outputs/dpo_lora/final/
-    │
-    ▼
-[Eval] inference/evaluate.py ──→ Accuracy, Confusion Matrix
-[Cmp]  inference/compare.py  ──→ SFT vs DPO 비교
-```
-
-## Project Structure
-
-```
-btc_training/
-├── data_prep/                    # 데이터 준비 파이프라인
-│   ├── generate_charts.py        # CSV → 4패널 차트 PNG + 메타데이터
-│   ├── prepare_batch.py          # 이미지 base64 → OpenAI Batch JSONL
-│   ├── submit_batch.py           # Batch API 제출 + 폴링 + 다운로드
-│   └── build_dataset.py          # GPT 응답 → 파인튜닝 JSONL 데이터셋
-│
-├── sft/                          # Supervised Fine-Tuning
-│   ├── train.py                  # TRL SFTTrainer + PEFT LoRA
-│   └── configs/
-│       ├── single.yaml           # Single GPU (bf16 LoRA)
-│       └── multi.yaml            # Multi GPU (bf16 LoRA)
-│
-├── dpo/                          # Direct Preference Optimization
-│   ├── build_pairs.py            # vLLM 배치 샘플링 → chosen/rejected 쌍
-│   ├── train.py                  # TRL DPOTrainer
-│   └── configs/
-│       ├── single.yaml
-│       └── multi.yaml
-│
-├── grpo/                         # Group Relative Policy Optimization
-│   ├── train.py                  # TRL GRPOTrainer
-│   ├── rewards.py                # 보상 함수 (format + signal)
-│   ├── merge_sft.py              # SFT LoRA → base 모델 머지
-│   └── configs/
-│       ├── single.yaml
-│       └── multi.yaml
-│
-├── inference/                    # 추론 & 평가
-│   ├── predict.py                # 단일 이미지 예측
-│   ├── evaluate.py               # 테스트셋 평가
-│   └── compare.py                # SFT vs DPO 비교
-│
-├── shared/                       # 공통 모듈
-│   ├── dataset_utils.py          # 데이터셋 로더 (VLMDataset, split)
-│   ├── analyze_dataset.py        # 데이터셋 통계 분석
-│   └── prompts.yaml              # 프롬프트 설정 (v3: hindsight mode)
-│
-├── data/
-│   ├── btc_trading_view.csv      # 원본 15분봉 (OHLCV + OI + Funding Rate)
-│   ├── teacher/                  # Teacher 데이터
-│   │   ├── dataset.jsonl         # GPT-4.1-mini 생성 데이터셋
-│   │   ├── window_meta.json      # 윈도우 메타데이터
-│   │   ├── batch_parts/          # Batch API 요청 파일
-│   │   └── batch_results.jsonl   # GPT 배치 결과
-│   ├── dpo_pairs.jsonl           # DPO chosen/rejected 쌍
-│   └── chart_images/             # 차트 PNG
-│
-├── outputs/                      # 학습 결과 (.gitignore)
-│   ├── sft_lora/final/           # SFT LoRA adapter
-│   ├── sft_merged/               # SFT LoRA 머지 모델 (DPO 쌍 생성용)
-│   └── dpo_lora/final/           # DPO LoRA adapter
-│
-├── .env                          # OpenAI API key
-└── requirements.txt              # 의존성
-```
-
----
 
 ## Setup
 
@@ -162,7 +76,7 @@ python shared/analyze_dataset.py --path data/teacher/dataset.jsonl
 python sft/train.py --config sft/configs/single.yaml
 
 # Multi GPU
-accelerate launch --num_processes 2 sft/train.py --config sft/configs/multi.yaml
+accelerate launch --config_file sft/configs/fsdp2.yaml sft/train.py --config sft/configs/multi.yaml
 
 # 소량 테스트
 python sft/train.py --config sft/configs/single.yaml --max-samples 50
