@@ -141,9 +141,13 @@ python inference/extract_testset.py --max-samples 50
 python inference/predict.py --image data/testset/chart_xxx.png
 python inference/predict.py --adapter outputs/sft_lora/final --image data/testset/chart_xxx.png
 
-# 테스트셋 일괄 평가
+# 테스트셋 일괄 평가 (결과는 outputs/eval_results/에 JSON 저장)
 python inference/evaluate.py --adapter outputs/sft_lora/final
 python inference/evaluate.py --adapter outputs/sft_lora/final --max-eval 50
+
+# 체크포인트별 비교
+python inference/evaluate.py --adapter outputs/sft_lora/checkpoint-100 --max-eval 50
+python inference/evaluate.py --adapter outputs/sft_lora/checkpoint-200 --max-eval 50
 
 # SFT vs DPO 비교
 python inference/compare.py
