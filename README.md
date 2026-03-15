@@ -53,6 +53,14 @@ OPENAI_API_KEY=sk-...
 
 ---
 
+## Chart Examples
+
+| LONG | SHORT | NEUTRAL |
+|------|-------|---------|
+| ![LONG](assets/example_long.png) | ![SHORT](assets/example_short.png) | ![NEUTRAL](assets/example_neutral.png) |
+
+---
+
 ## Step 0~3: 데이터 준비
 
 ```bash
@@ -101,6 +109,47 @@ python sft/train.py --config sft/configs/single.yaml --max-samples 50
 | Learning Rate | 1e-4 | 5e-5 |
 | Epochs | 2 | 2 |
 
+### SFT Evaluation Results (checkpoint-200, Best)
+
+테스트셋 600개 (LONG 214 / SHORT 259 / NEUTRAL 127)에 대한 vLLM 평가 결과.
+
+**Accuracy: 42.7% | Macro F1: 42.4%**
+
+#### Accuracy by Checkpoint
+
+![Accuracy Curve](assets/accuracy_curve.png)
+
+#### Confusion Matrix (checkpoint-200)
+
+![Confusion Matrix](assets/confusion_matrix.png)
+
+| | Pred LONG | Pred SHORT | Pred NEUTRAL | Recall |
+|---|---|---|---|---|
+| **LONG** | 71 | 60 | 83 | 33.2% |
+| **SHORT** | 55 | 102 | 102 | 39.4% |
+| **NEUTRAL** | 16 | 28 | 83 | 65.4% |
+
+#### Classification Report
+
+| Class | Precision | Recall | F1 | Support |
+|---|---|---|---|---|
+| LONG | 50.0% | 33.2% | 39.9% | 214 |
+| SHORT | 53.7% | 39.4% | 45.4% | 259 |
+| NEUTRAL | 31.0% | 65.4% | 42.0% | 127 |
+| **Macro Avg** | 44.9% | 46.0% | 42.4% | |
+
+#### F1 Score by Class & Checkpoint
+
+![F1 Comparison](assets/f1_comparison.png)
+
+| Checkpoint | Accuracy | LONG F1 | SHORT F1 | NEUTRAL F1 | Macro F1 |
+|---|---|---|---|---|---|
+| **checkpoint-200** | **42.7%** | **39.9%** | 45.4% | **42.0%** | **42.4%** |
+| checkpoint-300 | 39.8% | 15.2% | **51.6%** | 39.6% | 35.5% |
+| final | 41.7% | 19.3% | 52.6% | 41.6% | 37.8% |
+
+> checkpoint-200 이후 LONG recall이 급락하며 SHORT 편향이 심화됨. epoch 1.33 시점이 최적.
+
 ---
 
 ## DPO Training
@@ -145,13 +194,22 @@ python inference/predict.py --adapter outputs/sft_lora/final --image data/testse
 python inference/evaluate.py --adapter outputs/sft_lora/final
 python inference/evaluate.py --adapter outputs/sft_lora/final --max-eval 50
 
-# 체크포인트별 비교
-python inference/evaluate.py --adapter outputs/sft_lora/checkpoint-100 --max-eval 50
-python inference/evaluate.py --adapter outputs/sft_lora/checkpoint-200 --max-eval 50
+# 모든 체크포인트 한번에 평가 (precision/recall/F1 포함)
+python inference/evaluate_all.py --checkpoints-dir outputs/sft_lora
+python inference/evaluate_all.py --checkpoints-dir outputs/sft_lora --max-eval 50
+
+# vLLM으로 빠르게 평가 (LoRA 머지 필요)
+python inference/merge_lora.py --checkpoints-dir outputs/sft_lora --output-dir outputs/merged
+python inference/evaluate_all_vllm.py --models-dir outputs/merged
 
 # SFT vs DPO 비교
 python inference/compare.py
 python inference/compare.py --max-eval 50
+
+# Eval 결과 분석 (accuracy curve, confusion matrix, F1 비교)
+python inference/analyze_eval.py --input eval_vllm_20260315_044221.json
+python inference/analyze_eval.py --input eval_vllm_20260315_044221.json --save-dir outputs/eval_analysis
+python inference/analyze_eval.py --input eval_vllm_20260315_044221.json --no-plot  # 텍스트만
 ```
 
 ---
