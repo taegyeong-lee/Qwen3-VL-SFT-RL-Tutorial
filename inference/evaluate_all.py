@@ -24,6 +24,7 @@ from peft import PeftModel
 
 from shared.dataset_utils import load_dataset_splits
 from inference.predict import parse_output, DEFAULT_MODEL, SYSTEM_PROMPT, USER_PROMPT
+from inference.metrics import compute_metrics, print_classification_report
 
 
 def find_checkpoints(checkpoints_dir: str) -> list:
@@ -213,6 +214,7 @@ def main():
         all_results.append(metrics)
 
         print(f"\n  Accuracy: {metrics['accuracy']:.1f}% ({metrics['correct']}/{metrics['total']}) | Parse fail: {metrics['parse_fail']}")
+        metrics["class_report"] = print_classification_report(metrics["confusion"], name)
 
     # 비교 테이블
     print("\n" + "=" * 60)

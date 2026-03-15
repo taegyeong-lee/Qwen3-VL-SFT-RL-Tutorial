@@ -27,6 +27,7 @@ if PROJECT_ROOT not in sys.path:
 from PIL import Image
 from shared.dataset_utils import load_dataset_splits
 from inference.predict import parse_output, SYSTEM_PROMPT, USER_PROMPT
+from inference.metrics import compute_metrics, print_classification_report
 
 
 def build_prompt(image):
@@ -196,6 +197,7 @@ def main():
         all_results.append(metrics)
 
         print(f"\n  Accuracy: {metrics['accuracy']:.1f}% ({metrics['correct']}/{metrics['total']}) | Parse fail: {metrics['parse_fail']}")
+        metrics["class_report"] = print_classification_report(metrics["confusion"], name)
 
     # 비교 테이블
     print("\n" + "=" * 60)
