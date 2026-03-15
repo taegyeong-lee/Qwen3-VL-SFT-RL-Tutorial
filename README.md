@@ -4,6 +4,8 @@ Qwen3-VL-4B 비전 언어 모델을 SFT → DPO 순서로 파인튜닝하여 BTC
 
 - [Qwen3-VL 4B 비트코인 차트 해석 모델 만들기 — 1편: 데이터셋 구축 (LoRA SFT/Distillation, DPO)](https://velog.io/@seawhale/Qwen3-VL-4B%EB%A1%9C-%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%B0%A8%ED%8A%B8-%ED%95%B4%EC%84%9D-%EB%AA%A8%EB%8D%B8-%EB%A7%8C%EB%93%A4%EA%B8%B0-LoRA-SFT-Distillation) [2025.03.14]
 
+- [Qwen3-VL 4B 비트코인 차트 해석 모델 만들기 — 2편: 허깅페이스 TRL로 LoRA 파인튜닝](https://velog.io/@seawhale/Qwen3-VL-4B-%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%B0%A8%ED%8A%B8-%ED%95%B4%EC%84%9D-%EB%AA%A8%EB%8D%B8-%EB%A7%8C%EB%93%A4%EA%B8%B0-2%ED%8E%B8-%ED%97%88%EA%B9%85%ED%8E%98%EC%9D%B4%EC%8A%A4-TRL%EB%A1%9C-LoRA-%ED%8C%8C%EC%9D%B8%ED%8A%9C%EB%8B%9D)
+
 
 ## Setup
 
