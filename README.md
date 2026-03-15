@@ -17,11 +17,11 @@ conda activate btc
 ### 2. PyTorch 설치 (CUDA 버전에 맞게)
 
 ```bash
-# CUDA 12.x
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# CUDA 12.x (FSDP2 requires PyTorch >= 2.6.0)
+pip install torch>=2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu124
 
 # CUDA 11.8
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+pip install torch>=2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu118
 ```
 
 ### 3. 의존성 설치
@@ -30,13 +30,22 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 pip install -r requirements.txt
 ```
 
-### 4. GPU 확인
+### 4. Locale 설정 (Linux 서버)
+
+학습 중 체크포인트 저장 시 `UnicodeDecodeError`가 발생할 수 있다. `~/.bashrc`에 추가:
+
+```bash
+export LANG=en_US.UTF-8
+export PYTHONIOENCODING=utf-8
+```
+
+### 5. GPU 확인
 
 ```bash
 python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 ```
 
-### 5. .env (데이터 생성 시 필요)
+### 6. .env (데이터 생성 시 필요)
 
 ```
 OPENAI_API_KEY=sk-...
@@ -147,6 +156,10 @@ tensorboard --logdir outputs/sft_lora --port 6006
 
 # DPO
 tensorboard --logdir outputs/dpo_lora --port 6007
+
+# 원격 서버에서 실행 시 (외부 접근 허용)
+tensorboard --logdir outputs/sft_lora --port 6006 --bind_all
+# 브라우저에서 http://<서버IP>:6006 접속
 ```
 
 ---
