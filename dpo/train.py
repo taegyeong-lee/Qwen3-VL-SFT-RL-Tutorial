@@ -151,7 +151,6 @@ def main():
         loss_type=cfg.get("loss_type", "sigmoid"),
         # VLM: 이미지 토큰 잘림 방지
         max_length=None,
-        max_prompt_length=cfg.get("max_prompt_length", 1024),
         logging_steps=cfg.get("logging_steps", 10),
         save_strategy="steps",
         save_steps=cfg.get("save_steps", 100),
