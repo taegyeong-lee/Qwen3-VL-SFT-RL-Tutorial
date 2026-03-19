@@ -52,7 +52,20 @@ export PYTHONIOENCODING=utf-8
 python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 ```
 
-### 6. .env (데이터 생성 시 필요)
+### 6. SFT 체크포인트 다운로드 (LoRA 머지됨)
+
+학습 없이 바로 추론/DPO를 진행하려면 SFT 머지 모델을 다운로드:
+
+- [Google Drive: sft_merged/checkpoint-200](https://drive.google.com/file/d/1GlPNi0Ukr6GoxOoMDcon7qDPbsK7mLeX/view?usp=drive_link)
+
+```bash
+pip install gdown
+gdown 1GlPNi0Ukr6GoxOoMDcon7qDPbsK7mLeX -O sft_merged_checkpoint-200.zip
+unzip sft_merged_checkpoint-200.zip -d outputs/sft_merged/
+# outputs/sft_merged/checkpoint-200/ 에 config.json, model*.safetensors 등이 위치해야 함
+```
+
+### 7. .env (데이터 생성 시 필요)
 
 ```
 OPENAI_API_KEY=sk-...
@@ -161,28 +174,103 @@ python sft/train.py --config sft/configs/single.yaml --max-samples 50
 
 ## DPO Training
 
-```bash
-# 1) SFT LoRA → base 모델 머지 (vLLM용)
-python grpo/merge_sft.py --config dpo/configs/single.yaml
+### 개요
 
-# 2) vLLM으로 chosen/rejected 쌍 생성
+DPO(Direct Preference Optimization)는 SFT 모델의 출력 중 **좋은 응답(chosen)과 나쁜 응답(rejected)** 쌍으로 선호도 학습을 수행한다.
+
+```
+SFT 모델 → 같은 차트에 N번 생성 → 복합 스코어링 → best(chosen) / worst(rejected) 쌍 구성 → DPO 학습
+```
+
+### Step 1: SFT LoRA 머지
+
+vLLM은 LoRA를 직접 로드할 수 없으므로 base + adapter를 먼저 머지한다.
+
+```bash
+python inference/merge_lora.py --adapter outputs/sft_lora/checkpoint-200 --output outputs/sft_merged
+
+# 또는 Google Drive에서 머지된 모델 다운로드 (Setup 6번 참고)
+```
+
+### Step 2: 이미지 로딩 체크
+
+DPO 쌍 생성 전에 이미지가 제대로 인식되는지 확인한다. "Describe this image in detail"로 테스트.
+
+```bash
+python dpo/build_pairs.py --config dpo/configs/single.yaml --check-image
+```
+
+### Step 3: DPO Chosen/Rejected 쌍 생성
+
+SFT 머지 모델로 각 차트에 대해 N번(기본 8번) 생성 후, **복합 스코어링**으로 best/worst를 선정한다.
+
+```bash
+# 전체 (6000개 차트 × 8번 생성 = 48000 outputs)
 python dpo/build_pairs.py --config dpo/configs/single.yaml
 
-# 3) DPO 학습
+# 테스트 (100개만)
+python dpo/build_pairs.py --config dpo/configs/single.yaml --max-samples 100
+
+# BGE-M3 임베딩 없이 (signal 일치 여부만으로 스코어링)
+python dpo/build_pairs.py --config dpo/configs/single.yaml --no-embedding
+```
+
+#### 복합 스코어링 기준
+
+각 생성 응답에 점수를 매겨 best(chosen) vs worst(rejected)를 선정:
+
+| 기준 | 가중치 | 설명 |
+|------|--------|------|
+| Signal 일치 | **10** | actual_signal과 맞으면 +10 |
+| Reasoning 유사도 | **5** | Teacher reasoning과 BGE-M3 cosine similarity × 5 |
+| Confidence 보정 | **1** | 맞았을 때 confidence 높으면 +, 틀렸을 때 낮으면 + |
+
+```
+예시 (actual_signal = LONG):
+  생성1: LONG  ✓ + sim=0.82 + conf=80 → score=14.9  ← chosen
+  생성2: SHORT ✗ + sim=0.30 + conf=85 → score=1.75  ← rejected
+```
+
+#### 쌍 선택 로직
+
+| 상황 | 처리 |
+|------|------|
+| Mixed (맞은 것 + 틀린 것 혼재) | best vs worst 쌍 생성 |
+| All correct (전부 맞음) | score 차이 > 1.0이면 쌍 생성 (reasoning 품질 차이) |
+| All wrong (전부 틀림) | 스킵 |
+
+출력 파일(`data/dpo_pairs.jsonl`)에는 chosen/rejected 외에 **모든 생성 결과(`all_outputs`)**도 저장된다.
+
+### Step 4: DPO 학습
+
+```bash
+# Single GPU
 python dpo/train.py --config dpo/configs/single.yaml
 
 # Multi GPU
-accelerate launch --num_processes 2 dpo/train.py --config dpo/configs/multi.yaml
+accelerate launch --config_file sft/configs/fsdp2.yaml dpo/train.py --config dpo/configs/multi.yaml
+```
+
+### Step 5: DPO 모델 평가
+
+```bash
+# DPO LoRA 머지
+python inference/merge_lora.py --adapter outputs/dpo_lora/checkpoint-100 --output outputs/dpo_merged/checkpoint-100
+
+# 평가
+python inference/evaluate_all_vllm_v2.py --models-dir outputs/dpo_merged
 ```
 
 ### DPO 하이퍼파라미터 (yaml로 조정)
 
-| 파라미터 | 설명 |
-|---------|------|
-| `beta` | KL penalty coefficient (기본 0.1) |
-| `loss_type` | sigmoid / hinge / ipo |
-| `pair_generation.num_samples_per_image` | vLLM에서 이미지당 N번 샘플링 |
-| `pair_generation.temperature` | 샘플링 다양성 (기본 1.0) |
+| 파라미터 | 값 | 설명 |
+|---------|-----|------|
+| `beta` | 0.1 | KL penalty coefficient |
+| `loss_type` | sigmoid | sigmoid / hinge / ipo |
+| `lr` | 5e-6 | SFT보다 낮게 |
+| `lora_rank` / `lora_alpha` | 16 / 32 | SFT와 동일 |
+| `pair_generation.num_samples_per_image` | 8 | 이미지당 생성 횟수 |
+| `pair_generation.temperature` | 1.0 | 샘플링 다양성 |
 
 ---
 

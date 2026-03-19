@@ -393,6 +393,8 @@ def main():
                         help="Skip BGE-M3 embedding, use signal-only scoring")
     parser.add_argument("--check-image", action="store_true",
                         help="Test image loading with 'Describe this image' before building pairs")
+    parser.add_argument("--model", type=str, default=None,
+                        help="Merged SFT model path (overrides config sft_merged_path)")
     parser.add_argument("--source-dataset", type=str, default=None,
                         help="Source dataset.jsonl path (default: data/teacher/dataset.jsonl)")
     args = parser.parse_args()
@@ -400,6 +402,9 @@ def main():
     config_path = os.path.join(PROJECT_ROOT, args.config) if not os.path.isabs(args.config) else args.config
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
+
+    if args.model:
+        cfg["sft_merged_path"] = args.model
 
     source_path = args.source_dataset or os.path.join(PROJECT_ROOT, "data", "teacher", "dataset.jsonl")
     output_path = os.path.join(PROJECT_ROOT, cfg.get("dataset_path", "data/dpo_pairs.jsonl"))

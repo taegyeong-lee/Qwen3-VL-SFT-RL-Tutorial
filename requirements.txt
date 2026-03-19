@@ -25,3 +25,4 @@ tensorboard
 
 # ── Misc ──
 tqdm
+gdown  # Google Drive download
