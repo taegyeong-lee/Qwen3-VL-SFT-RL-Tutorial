@@ -49,12 +49,12 @@ def parse_model_output(text: str) -> dict | None:
         return None
 
 
-def load_embedding_model(model_name: str = "BAAI/bge-m3"):
+def load_embedding_model(model_name: str = "BAAI/bge-m3", device: str = "cuda"):
     """BGE-M3 임베딩 모델 로드."""
     try:
         from sentence_transformers import SentenceTransformer
-        print(f"Loading embedding model: {model_name} (CPU)")
-        model = SentenceTransformer(model_name, device="cpu")
+        print(f"Loading embedding model: {model_name} ({device})")
+        model = SentenceTransformer(model_name, device=device)
         return model
     except ImportError:
         print("WARNING: sentence-transformers not installed. pip install sentence-transformers")
@@ -180,30 +180,30 @@ def load_source_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
 
 def generate_pairs(samples: list[dict], cfg: dict, use_embedding: bool = True,
                     output_path: str = None) -> list[dict]:
-    """vLLM으로 SFT 모델 N번 샘플링 → 복합 스코어링 → chosen/rejected 쌍 생성."""
+    """Phase 1: vLLM 생성 → Phase 2: GPU 임베딩 스코어링 → 쌍 구성."""
     model_path = os.path.join(PROJECT_ROOT, cfg.get("sft_merged_path", "outputs/sft_merged"))
     pair_cfg = cfg.get("pair_generation", {})
     num_samples = pair_cfg.get("num_samples_per_image", 8)
     temperature = pair_cfg.get("temperature", 1.0)
     max_new_tokens = pair_cfg.get("max_new_tokens", 768)
+    chunk_size = pair_cfg.get("chunk_size", 500)
+    raw_path = (output_path + ".raw.jsonl") if output_path else None
 
     if not os.path.exists(model_path):
         print(f"ERROR: Merged model not found: {model_path}")
         print(f"Run first: python inference/merge_lora.py --adapter <adapter_path> --output {model_path}")
         sys.exit(1)
 
-    # BGE-M3 로드
-    embed_model = None
-    if use_embedding:
-        embed_model = load_embedding_model()
-        if not embed_model:
-            print("Falling back to signal-only scoring")
+    # ═══════════════════════════════════════════════════════════
+    # Phase 1: vLLM 생성 (GPU 전부 vLLM이 사용)
+    # ═══════════════════════════════════════════════════════════
+    print("\n" + "=" * 60)
+    print("Phase 1: vLLM Generation")
+    print("=" * 60)
 
-    # Processor 로드 (apply_chat_template용)
     base_model = cfg.get("model", "Qwen/Qwen3-VL-4B-Instruct")
     processor = AutoProcessor.from_pretrained(base_model, trust_remote_code=True)
 
-    # vLLM 로드
     print(f"Loading vLLM model: {model_path}")
     llm = LLM(
         model=model_path,
@@ -217,21 +217,18 @@ def generate_pairs(samples: list[dict], cfg: dict, use_embedding: bool = True,
         n=num_samples,
     )
 
-    # 청크 단위 처리 + 중간 저장
-    chunk_size = pair_cfg.get("chunk_size", 500)
-    pairs = []
-    stats = {"total": 0, "both_correct": 0, "both_wrong": 0, "mixed": 0, "parse_fail": 0}
+    # 청크 단위 생성 + 중간 저장
+    all_raw_results = []  # [(sample_idx, output_text)]
+    parse_fail_count = 0
 
     for chunk_start in range(0, len(samples), chunk_size):
         chunk_end = min(chunk_start + chunk_size, len(samples))
         chunk_samples = samples[chunk_start:chunk_end]
         print(f"\n--- Chunk {chunk_start//chunk_size + 1} [{chunk_start+1}~{chunk_end}/{len(samples)}] ---")
 
-        # vLLM 입력 구성 (processor.apply_chat_template 방식)
         prompts = []
         for sample in chunk_samples:
             img = Image.open(sample["image_path"]).convert("RGB")
-
             messages = []
             if sample["system_text"]:
                 messages.append({"role": "system", "content": [
@@ -241,142 +238,178 @@ def generate_pairs(samples: list[dict], cfg: dict, use_embedding: bool = True,
                 {"type": "image"},
                 {"type": "text", "text": sample["user_text"]},
             ]})
-
             prompt_text = processor.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
             prompts.append({"prompt": prompt_text, "multi_modal_data": {"image": img}})
 
-        # vLLM batch generate
         print(f"  Generating {len(prompts)} x {num_samples} = {len(prompts) * num_samples} outputs...")
         outputs = llm.generate(prompts, sampling_params=sampling_params)
 
-        # 파싱 + 임베딩 텍스트 수집
-        parsed_results = []  # [(sample_idx, output_text, parsed, student_reasoning)]
+        # 파싱 + 원시 결과 수집
         for i, (sample, output) in enumerate(zip(chunk_samples, outputs)):
+            global_idx = chunk_start + i
             for completion in output.outputs:
                 output_text = completion.text
                 parsed = parse_model_output(output_text)
                 if not parsed or "signal" not in parsed:
-                    stats["parse_fail"] += 1
+                    parse_fail_count += 1
                     continue
-                student_reasoning = get_reasoning_text(parsed)
-                parsed_results.append((i, output_text, parsed, student_reasoning))
+                all_raw_results.append((global_idx, output_text, parsed))
 
-        # 배치 임베딩 (한 번에 encode)
-        sim_scores = {}
-        if embed_model and parsed_results:
-            teacher_texts = []
-            student_texts = []
-            embed_indices = []
-            for idx, (sample_idx, _, _, student_reasoning) in enumerate(parsed_results):
-                teacher_reasoning = chunk_samples[sample_idx]["teacher_reasoning"]
-                if teacher_reasoning and student_reasoning:
-                    teacher_texts.append(teacher_reasoning)
-                    student_texts.append(student_reasoning)
-                    embed_indices.append(idx)
+        print(f"  Chunk done. total_parsed={len(all_raw_results)} parse_fail={parse_fail_count}")
 
-            if teacher_texts:
-                print(f"  Computing {len(teacher_texts)} embeddings in batch...")
-                all_texts = teacher_texts + student_texts
-                all_embeddings = embed_model.encode(all_texts, normalize_embeddings=True,
-                                                     batch_size=256, show_progress_bar=False)
-                n = len(teacher_texts)
-                for j, idx in enumerate(embed_indices):
-                    sim = float(np.dot(all_embeddings[j], all_embeddings[n + j]))
-                    sim_scores[idx] = sim
+        # 중간 저장 (raw)
+        if raw_path:
+            os.makedirs(os.path.dirname(raw_path), exist_ok=True)
+            with open(raw_path, "w", encoding="utf-8") as f:
+                for global_idx, output_text, parsed in all_raw_results:
+                    f.write(json.dumps({
+                        "sample_idx": global_idx,
+                        "output_text": output_text,
+                        "parsed": parsed,
+                    }, ensure_ascii=False) + "\n")
+            print(f"  Saved raw results to {raw_path}")
 
-        # 결과를 sample별로 그룹핑
-        sample_outputs = defaultdict(list)
-        for idx, (sample_idx, output_text, parsed, _) in enumerate(parsed_results):
-            sample = chunk_samples[sample_idx]
-            signal_match = parsed.get("signal") == sample["actual_signal"]
+    # vLLM 해제 → GPU 메모리 확보
+    print(f"\nPhase 1 complete. {len(all_raw_results)} parsed outputs, {parse_fail_count} parse failures.")
+    print("Releasing vLLM GPU memory...")
+    del llm
+    del processor
+    import gc
+    gc.collect()
+    try:
+        import torch
+        torch.cuda.empty_cache()
+    except Exception:
+        pass
 
-            # 스코어 계산 (임베딩은 미리 계산된 값 사용)
-            score = 0.0
-            if signal_match:
-                score += 10.0
-            if idx in sim_scores:
-                score += sim_scores[idx] * 5.0
-            confidence = parsed.get("confidence", 50)
-            if isinstance(confidence, (int, float)):
-                conf_norm = confidence / 100.0
-                score += conf_norm if signal_match else (1.0 - conf_norm)
+    # ═══════════════════════════════════════════════════════════
+    # Phase 2: GPU 임베딩 + 스코어링 + 쌍 구성
+    # ═══════════════════════════════════════════════════════════
+    print("\n" + "=" * 60)
+    print("Phase 2: Scoring & Pair Selection")
+    print("=" * 60)
 
-            sample_outputs[sample_idx].append({
-                "text": output_text,
-                "score": score,
-                "signal_match": signal_match,
-            })
+    # BGE-M3 GPU 로드
+    embed_model = None
+    if use_embedding:
+        embed_model = load_embedding_model(device="cuda")
+        if not embed_model:
+            print("Falling back to signal-only scoring")
 
-        # chosen/rejected 쌍 구성
-        for i, sample in enumerate(chunk_samples):
-            scored_outputs = sample_outputs.get(i, [])
+    # 배치 임베딩
+    sim_scores = {}
+    if embed_model:
+        teacher_texts = []
+        student_texts = []
+        embed_indices = []
+        for idx, (global_idx, _, parsed) in enumerate(all_raw_results):
+            teacher_reasoning = samples[global_idx]["teacher_reasoning"]
+            student_reasoning = get_reasoning_text(parsed)
+            if teacher_reasoning and student_reasoning:
+                teacher_texts.append(teacher_reasoning)
+                student_texts.append(student_reasoning)
+                embed_indices.append(idx)
 
-            if len(scored_outputs) < 2:
-                continue
+        if teacher_texts:
+            print(f"Computing {len(teacher_texts)} x 2 = {len(teacher_texts)*2} embeddings on GPU...")
+            all_texts = teacher_texts + student_texts
+            all_embeddings = embed_model.encode(all_texts, normalize_embeddings=True,
+                                                 batch_size=512, show_progress_bar=True)
+            n = len(teacher_texts)
+            for j, idx in enumerate(embed_indices):
+                sim = float(np.dot(all_embeddings[j], all_embeddings[n + j]))
+                sim_scores[idx] = sim
+            print(f"Embedding done. avg_sim={np.mean(list(sim_scores.values())):.3f}")
 
-            stats["total"] += 1
+        # 임베딩 모델 해제
+        del embed_model
+        gc.collect()
+        try:
+            torch.cuda.empty_cache()
+        except Exception:
+            pass
 
-            # best와 worst 선택
-            scored_outputs.sort(key=lambda x: x["score"], reverse=True)
-            best = scored_outputs[0]
-            worst = scored_outputs[-1]
+    # 스코어링 + 그룹핑
+    sample_outputs = defaultdict(list)
+    for idx, (global_idx, output_text, parsed) in enumerate(all_raw_results):
+        sample = samples[global_idx]
+        signal_match = parsed.get("signal") == sample["actual_signal"]
 
-            all_correct = all(o["signal_match"] for o in scored_outputs)
-            all_wrong = not any(o["signal_match"] for o in scored_outputs)
+        score = 0.0
+        if signal_match:
+            score += 10.0
+        if idx in sim_scores:
+            score += sim_scores[idx] * 5.0
+        confidence = parsed.get("confidence", 50)
+        if isinstance(confidence, (int, float)):
+            conf_norm = confidence / 100.0
+            score += conf_norm if signal_match else (1.0 - conf_norm)
 
-            if all_correct:
-                stats["both_correct"] += 1
-                if embed_model and (best["score"] - worst["score"]) > 1.0:
-                    pass  # 아래에서 쌍 생성
-                else:
-                    continue
-            elif all_wrong:
-                stats["both_wrong"] += 1
-                continue
+        sample_outputs[global_idx].append({
+            "text": output_text,
+            "score": score,
+            "signal_match": signal_match,
+        })
+
+    # chosen/rejected 쌍 구성
+    pairs = []
+    stats = {"total": 0, "both_correct": 0, "both_wrong": 0, "mixed": 0,
+             "parse_fail": parse_fail_count}
+
+    for global_idx, sample in enumerate(samples):
+        scored_outputs = sample_outputs.get(global_idx, [])
+        if len(scored_outputs) < 2:
+            continue
+
+        stats["total"] += 1
+        scored_outputs.sort(key=lambda x: x["score"], reverse=True)
+        best = scored_outputs[0]
+        worst = scored_outputs[-1]
+
+        all_correct = all(o["signal_match"] for o in scored_outputs)
+        all_wrong = not any(o["signal_match"] for o in scored_outputs)
+
+        if all_correct:
+            stats["both_correct"] += 1
+            if use_embedding and (best["score"] - worst["score"]) > 1.0:
+                pass
             else:
-                stats["mixed"] += 1
+                continue
+        elif all_wrong:
+            stats["both_wrong"] += 1
+            continue
+        else:
+            stats["mixed"] += 1
 
-            pairs.append({
-                "prompt": [
-                    {"role": "system", "content": sample["system_text"]},
-                    {"role": "user", "content": [
-                        {"type": "image"},
-                        {"type": "text", "text": sample["user_text"]},
-                    ]},
-                ] if sample["system_text"] else [
-                    {"role": "user", "content": [
-                        {"type": "image"},
-                        {"type": "text", "text": sample["user_text"]},
-                    ]},
-                ],
-                "images": [os.path.relpath(sample["image_path"], PROJECT_ROOT)],
-                "chosen": [{"role": "assistant", "content": best["text"]}],
-                "rejected": [{"role": "assistant", "content": worst["text"]}],
-                "actual_signal": sample["actual_signal"],
-                "best_score": round(best["score"], 3),
-                "worst_score": round(worst["score"], 3),
-                "all_outputs": [
-                    {
-                        "text": o["text"],
-                        "score": round(o["score"], 3),
-                        "signal_match": o["signal_match"],
-                    } for o in scored_outputs
-                ],
-            })
-
-        print(f"  Chunk done. pairs={len(pairs)} "
-              f"(mixed={stats['mixed']} both_correct={stats['both_correct']} "
-              f"both_wrong={stats['both_wrong']})")
-
-        # 중간 저장
-        if output_path:
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            with open(output_path, "w", encoding="utf-8") as f:
-                for pair in pairs:
-                    f.write(json.dumps(pair, ensure_ascii=False) + "\n")
-            print(f"  Saved {len(pairs)} pairs to {output_path}")
+        pairs.append({
+            "prompt": [
+                {"role": "system", "content": sample["system_text"]},
+                {"role": "user", "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": sample["user_text"]},
+                ]},
+            ] if sample["system_text"] else [
+                {"role": "user", "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": sample["user_text"]},
+                ]},
+            ],
+            "images": [os.path.relpath(sample["image_path"], PROJECT_ROOT)],
+            "chosen": [{"role": "assistant", "content": best["text"]}],
+            "rejected": [{"role": "assistant", "content": worst["text"]}],
+            "actual_signal": sample["actual_signal"],
+            "best_score": round(best["score"], 3),
+            "worst_score": round(worst["score"], 3),
+            "all_outputs": [
+                {
+                    "text": o["text"],
+                    "score": round(o["score"], 3),
+                    "signal_match": o["signal_match"],
+                } for o in scored_outputs
+            ],
+        })
 
     print(f"\n--- Pair Generation Stats ---")
     print(f"Total processed:  {stats['total']}")
