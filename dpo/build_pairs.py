@@ -25,6 +25,7 @@ os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 import sys
 import json
 import argparse
+from collections import defaultdict
 import numpy as np
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -250,27 +251,67 @@ def generate_pairs(samples: list[dict], cfg: dict, use_embedding: bool = True,
         print(f"  Generating {len(prompts)} x {num_samples} = {len(prompts) * num_samples} outputs...")
         outputs = llm.generate(prompts, sampling_params=sampling_params)
 
-        # 스코어링 + chosen/rejected 쌍 구성
+        # 파싱 + 임베딩 텍스트 수집
+        parsed_results = []  # [(sample_idx, output_text, parsed, student_reasoning)]
         for i, (sample, output) in enumerate(zip(chunk_samples, outputs)):
-            scored_outputs = []
-
             for completion in output.outputs:
                 output_text = completion.text
                 parsed = parse_model_output(output_text)
-
                 if not parsed or "signal" not in parsed:
                     stats["parse_fail"] += 1
                     continue
+                student_reasoning = get_reasoning_text(parsed)
+                parsed_results.append((i, output_text, parsed, student_reasoning))
 
-                score = score_output(
-                    parsed, sample["actual_signal"],
-                    sample["teacher_reasoning"], embed_model
-                )
-                scored_outputs.append({
-                    "text": output_text,
-                    "score": score,
-                    "signal_match": parsed.get("signal") == sample["actual_signal"],
-                })
+        # 배치 임베딩 (한 번에 encode)
+        sim_scores = {}
+        if embed_model and parsed_results:
+            teacher_texts = []
+            student_texts = []
+            embed_indices = []
+            for idx, (sample_idx, _, _, student_reasoning) in enumerate(parsed_results):
+                teacher_reasoning = chunk_samples[sample_idx]["teacher_reasoning"]
+                if teacher_reasoning and student_reasoning:
+                    teacher_texts.append(teacher_reasoning)
+                    student_texts.append(student_reasoning)
+                    embed_indices.append(idx)
+
+            if teacher_texts:
+                print(f"  Computing {len(teacher_texts)} embeddings in batch...")
+                all_texts = teacher_texts + student_texts
+                all_embeddings = embed_model.encode(all_texts, normalize_embeddings=True,
+                                                     batch_size=256, show_progress_bar=False)
+                n = len(teacher_texts)
+                for j, idx in enumerate(embed_indices):
+                    sim = float(np.dot(all_embeddings[j], all_embeddings[n + j]))
+                    sim_scores[idx] = sim
+
+        # 결과를 sample별로 그룹핑
+        sample_outputs = defaultdict(list)
+        for idx, (sample_idx, output_text, parsed, _) in enumerate(parsed_results):
+            sample = chunk_samples[sample_idx]
+            signal_match = parsed.get("signal") == sample["actual_signal"]
+
+            # 스코어 계산 (임베딩은 미리 계산된 값 사용)
+            score = 0.0
+            if signal_match:
+                score += 10.0
+            if idx in sim_scores:
+                score += sim_scores[idx] * 5.0
+            confidence = parsed.get("confidence", 50)
+            if isinstance(confidence, (int, float)):
+                conf_norm = confidence / 100.0
+                score += conf_norm if signal_match else (1.0 - conf_norm)
+
+            sample_outputs[sample_idx].append({
+                "text": output_text,
+                "score": score,
+                "signal_match": signal_match,
+            })
+
+        # chosen/rejected 쌍 구성
+        for i, sample in enumerate(chunk_samples):
+            scored_outputs = sample_outputs.get(i, [])
 
             if len(scored_outputs) < 2:
                 continue
