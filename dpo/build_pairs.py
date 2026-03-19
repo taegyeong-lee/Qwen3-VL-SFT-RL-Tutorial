@@ -1,23 +1,31 @@
 """
-DPO: Build chosen/rejected pairs via vLLM batch sampling.
+DPO: Build chosen/rejected pairs via vLLM batch sampling + BGE-M3 scoring.
 
 SFT LoRA를 base에 머지한 모델을 vLLM으로 로드하고,
-같은 차트에 대해 N번 생성 → actual_signal과 비교하여
-chosen (정답) / rejected (오답) 쌍을 구성.
+같은 차트에 대해 N번 생성 → 복합 스코어링으로
+chosen (best) / rejected (worst) 쌍을 구성.
+
+스코어링 기준:
+  - signal_match: actual_signal 일치 여부 (가중치 10)
+  - reasoning_sim: teacher reasoning과 BGE-M3 cosine similarity (가중치 5)
+  - confidence_cal: confidence calibration (가중치 1)
 
 사전 준비:
   1) SFT LoRA → base 모델 머지
-     python grpo/merge_sft.py --config dpo/configs/single.yaml
+     python inference/merge_lora.py --adapter outputs/sft_lora/checkpoint-200 --output outputs/sft_merged
 
 Usage:
   python dpo/build_pairs.py --config dpo/configs/single.yaml
   python dpo/build_pairs.py --config dpo/configs/single.yaml --max-samples 100
+  python dpo/build_pairs.py --config dpo/configs/single.yaml --no-embedding  # embedding 없이
 """
 
 import os
+os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 import sys
 import json
 import argparse
+import numpy as np
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -25,6 +33,7 @@ if PROJECT_ROOT not in sys.path:
 
 import yaml
 from PIL import Image
+from transformers import AutoProcessor
 from vllm import LLM, SamplingParams
 
 
@@ -39,11 +48,75 @@ def parse_model_output(text: str) -> dict | None:
         return None
 
 
-def load_source_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
-    """actual_signal이 있는 dataset entries 로드.
+def load_embedding_model(model_name: str = "BAAI/bge-m3"):
+    """BGE-M3 임베딩 모델 로드."""
+    try:
+        from sentence_transformers import SentenceTransformer
+        print(f"Loading embedding model: {model_name}")
+        model = SentenceTransformer(model_name)
+        return model
+    except ImportError:
+        print("WARNING: sentence-transformers not installed. pip install sentence-transformers")
+        return None
 
-    TRL VLM 포맷: {"messages": [...], "images": [...], "metadata": {...}}
+
+def get_reasoning_text(parsed: dict) -> str:
+    """reasoning dict를 필드별 텍스트로 변환."""
+    reasoning = parsed.get("reasoning", {})
+    if isinstance(reasoning, dict):
+        parts = []
+        for field in ["market_context", "price_action", "volume_oi", "risk_assessment"]:
+            if field in reasoning:
+                parts.append(f"{field}: {reasoning[field]}")
+        return " ".join(parts)
+    elif isinstance(reasoning, str):
+        return reasoning
+    return ""
+
+
+def compute_reasoning_similarity(embed_model, teacher_text: str, student_text: str) -> float:
+    """BGE-M3로 teacher/student reasoning cosine similarity 계산."""
+    if not embed_model or not teacher_text or not student_text:
+        return 0.0
+    embeddings = embed_model.encode([teacher_text, student_text], normalize_embeddings=True)
+    return float(np.dot(embeddings[0], embeddings[1]))
+
+
+def score_output(parsed: dict, actual_signal: str, teacher_reasoning: str,
+                 embed_model=None) -> float:
+    """복합 스코어링.
+
+    - signal_match: 10점
+    - reasoning_sim: 0~5점 (BGE-M3 cosine sim * 5)
+    - confidence_cal: 0~1점
     """
+    score = 0.0
+
+    # 1) Signal match (가중치 10)
+    signal_match = parsed.get("signal") == actual_signal
+    if signal_match:
+        score += 10.0
+
+    # 2) Reasoning similarity (가중치 5)
+    student_reasoning = get_reasoning_text(parsed)
+    if embed_model and teacher_reasoning and student_reasoning:
+        sim = compute_reasoning_similarity(embed_model, teacher_reasoning, student_reasoning)
+        score += sim * 5.0
+
+    # 3) Confidence calibration (가중치 1)
+    confidence = parsed.get("confidence", 50)
+    if isinstance(confidence, (int, float)):
+        conf_norm = confidence / 100.0
+        if signal_match:
+            score += conf_norm  # 맞았을 때 confidence 높으면 +
+        else:
+            score += (1.0 - conf_norm)  # 틀렸을 때 confidence 낮으면 +
+
+    return score
+
+
+def load_source_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
+    """actual_signal + teacher reasoning이 있는 dataset entries 로드."""
     samples = []
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -54,17 +127,18 @@ def load_source_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
             if "messages" not in entry or "images" not in entry:
                 continue
 
-            # 이미지 경로 확인
             image_path = os.path.join(PROJECT_ROOT, entry["images"][0])
             if not os.path.exists(image_path):
                 continue
 
-            # messages에서 system/user 텍스트 추출
+            # messages에서 system/user/assistant 텍스트 추출
             system_text = ""
             user_text = ""
+            teacher_response = ""
             for msg in entry["messages"]:
                 if msg["role"] == "system":
-                    system_text = msg["content"]
+                    content = msg["content"]
+                    system_text = content[0]["text"] if isinstance(content, list) else content
                 elif msg["role"] == "user":
                     if isinstance(msg["content"], list):
                         for item in msg["content"]:
@@ -72,15 +146,28 @@ def load_source_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
                                 user_text = item["text"]
                     else:
                         user_text = msg["content"]
+                elif msg["role"] == "assistant":
+                    content = msg["content"]
+                    teacher_response = content[0]["text"] if isinstance(content, list) else content
 
             if not user_text:
                 continue
+
+            # Teacher reasoning 추출
+            teacher_reasoning = ""
+            if teacher_response:
+                try:
+                    teacher_parsed = json.loads(teacher_response)
+                    teacher_reasoning = get_reasoning_text(teacher_parsed)
+                except json.JSONDecodeError:
+                    pass
 
             samples.append({
                 "image_path": image_path,
                 "system_text": system_text,
                 "user_text": user_text,
                 "actual_signal": metadata["actual_signal"],
+                "teacher_reasoning": teacher_reasoning,
             })
 
     if max_samples:
@@ -90,8 +177,8 @@ def load_source_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
     return samples
 
 
-def generate_pairs(samples: list[dict], cfg: dict) -> list[dict]:
-    """vLLM으로 SFT 모델 N번 샘플링 → chosen/rejected 쌍 생성."""
+def generate_pairs(samples: list[dict], cfg: dict, use_embedding: bool = True) -> list[dict]:
+    """vLLM으로 SFT 모델 N번 샘플링 → 복합 스코어링 → chosen/rejected 쌍 생성."""
     model_path = os.path.join(PROJECT_ROOT, cfg.get("sft_merged_path", "outputs/sft_merged"))
     pair_cfg = cfg.get("pair_generation", {})
     num_samples = pair_cfg.get("num_samples_per_image", 8)
@@ -100,9 +187,21 @@ def generate_pairs(samples: list[dict], cfg: dict) -> list[dict]:
 
     if not os.path.exists(model_path):
         print(f"ERROR: Merged model not found: {model_path}")
-        print(f"Run first: python grpo/merge_sft.py --config <your_config>")
+        print(f"Run first: python inference/merge_lora.py --adapter <adapter_path> --output {model_path}")
         sys.exit(1)
 
+    # BGE-M3 로드
+    embed_model = None
+    if use_embedding:
+        embed_model = load_embedding_model()
+        if not embed_model:
+            print("Falling back to signal-only scoring")
+
+    # Processor 로드 (apply_chat_template용)
+    base_model = cfg.get("model", "Qwen/Qwen3-VL-4B-Instruct")
+    processor = AutoProcessor.from_pretrained(base_model, trust_remote_code=True)
+
+    # vLLM 로드
     print(f"Loading vLLM model: {model_path}")
     llm = LLM(
         model=model_path,
@@ -113,73 +212,187 @@ def generate_pairs(samples: list[dict], cfg: dict) -> list[dict]:
     sampling_params = SamplingParams(
         max_tokens=max_new_tokens,
         temperature=temperature,
-        n=num_samples,  # N번 샘플링을 한 번의 요청으로
+        n=num_samples,
     )
 
-    # vLLM 입력 구성
+    # vLLM 입력 구성 (processor.apply_chat_template 방식)
     print(f"Building {len(samples)} prompts (n={num_samples} per image)...")
     prompts = []
     for sample in samples:
         img = Image.open(sample["image_path"]).convert("RGB")
 
-        prompt = f"<|im_start|>system\n{sample['system_text']}<|im_end|>\n" if sample["system_text"] else ""
-        prompt += (
-            f"<|im_start|>user\n"
-            f"<|vision_start|><|image_pad|><|vision_end|>"
-            f"{sample['user_text']}<|im_end|>\n"
-            f"<|im_start|>assistant\n"
+        messages = []
+        if sample["system_text"]:
+            messages.append({"role": "system", "content": [
+                {"type": "text", "text": sample["system_text"]},
+            ]})
+        messages.append({"role": "user", "content": [
+            {"type": "image"},
+            {"type": "text", "text": sample["user_text"]},
+        ]})
+
+        prompt_text = processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
         )
-        prompts.append({"prompt": prompt, "multi_modal_data": {"image": img}})
+        prompts.append({"prompt": prompt_text, "multi_modal_data": {"image": img}})
 
     # vLLM batch generate
     print(f"Generating {len(prompts)} x {num_samples} = {len(prompts) * num_samples} outputs...")
     outputs = llm.generate(prompts, sampling_params=sampling_params)
 
-    # chosen/rejected 분류
+    # 스코어링 + chosen/rejected 쌍 구성
     pairs = []
+    stats = {"total": 0, "both_correct": 0, "both_wrong": 0, "mixed": 0, "parse_fail": 0}
+
     for i, (sample, output) in enumerate(zip(samples, outputs)):
-        chosen_outputs = []
-        rejected_outputs = []
+        scored_outputs = []
 
         for completion in output.outputs:
             output_text = completion.text
-
             parsed = parse_model_output(output_text)
+
             if not parsed or "signal" not in parsed:
-                rejected_outputs.append(output_text)
+                stats["parse_fail"] += 1
                 continue
 
-            if parsed["signal"] == sample["actual_signal"]:
-                chosen_outputs.append(output_text)
-            else:
-                rejected_outputs.append(output_text)
+            score = score_output(
+                parsed, sample["actual_signal"],
+                sample["teacher_reasoning"], embed_model
+            )
+            scored_outputs.append({
+                "text": output_text,
+                "score": score,
+                "signal_match": parsed.get("signal") == sample["actual_signal"],
+            })
 
-        # chosen × rejected 조합으로 쌍 구성
-        for chosen in chosen_outputs:
-            for rejected in rejected_outputs:
-                pairs.append({
-                    "image_path": os.path.relpath(sample["image_path"], PROJECT_ROOT),
-                    "prompt": [
-                        {"role": "system", "content": sample["system_text"]},
-                        {"role": "user", "content": sample["user_text"]},
-                    ] if sample["system_text"] else [
-                        {"role": "user", "content": sample["user_text"]},
-                    ],
-                    "chosen": chosen,
-                    "rejected": rejected,
-                    "actual_signal": sample["actual_signal"],
-                })
+        if len(scored_outputs) < 2:
+            continue
+
+        stats["total"] += 1
+
+        # best와 worst 선택
+        scored_outputs.sort(key=lambda x: x["score"], reverse=True)
+        best = scored_outputs[0]
+        worst = scored_outputs[-1]
+
+        all_correct = all(o["signal_match"] for o in scored_outputs)
+        all_wrong = not any(o["signal_match"] for o in scored_outputs)
+
+        if all_correct:
+            stats["both_correct"] += 1
+            # 전부 맞아도 reasoning 유사도 차이가 있으면 쌍 생성
+            if embed_model and (best["score"] - worst["score"]) > 1.0:
+                pass  # 아래에서 쌍 생성
+            else:
+                continue
+        elif all_wrong:
+            stats["both_wrong"] += 1
+            continue  # 전부 틀리면 스킵
+        else:
+            stats["mixed"] += 1
+
+        pairs.append({
+            "prompt": [
+                {"role": "system", "content": sample["system_text"]},
+                {"role": "user", "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": sample["user_text"]},
+                ]},
+            ] if sample["system_text"] else [
+                {"role": "user", "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": sample["user_text"]},
+                ]},
+            ],
+            "images": [os.path.relpath(sample["image_path"], PROJECT_ROOT)],
+            "chosen": [{"role": "assistant", "content": best["text"]}],
+            "rejected": [{"role": "assistant", "content": worst["text"]}],
+            "actual_signal": sample["actual_signal"],
+            "best_score": round(best["score"], 3),
+            "worst_score": round(worst["score"], 3),
+            "all_outputs": [
+                {
+                    "text": o["text"],
+                    "score": round(o["score"], 3),
+                    "signal_match": o["signal_match"],
+                } for o in scored_outputs
+            ],
+        })
 
         if (i + 1) % 100 == 0 or i == len(samples) - 1:
-            print(f"  [{i+1}/{len(samples)}] chosen={len(chosen_outputs)} rejected={len(rejected_outputs)} total_pairs={len(pairs)}")
+            print(f"  [{i+1}/{len(samples)}] pairs={len(pairs)} "
+                  f"(mixed={stats['mixed']} both_correct={stats['both_correct']} "
+                  f"both_wrong={stats['both_wrong']})")
+
+    print(f"\n--- Pair Generation Stats ---")
+    print(f"Total processed:  {stats['total']}")
+    print(f"Mixed (usable):   {stats['mixed']}")
+    print(f"Both correct:     {stats['both_correct']} (used if score gap > 1.0)")
+    print(f"Both wrong:       {stats['both_wrong']} (skipped)")
+    print(f"Parse failures:   {stats['parse_fail']}")
+    print(f"Final pairs:      {len(pairs)}")
 
     return pairs
 
 
+def check_image(source_dataset: list[dict], cfg: dict, num_samples: int = 3):
+    """vLLM으로 이미지가 제대로 인식되는지 'Describe this image in detail' 테스트."""
+    import random
+
+    model_path = os.path.join(PROJECT_ROOT, cfg.get("sft_merged_path", "outputs/sft_merged"))
+    base_model = cfg.get("model", "Qwen/Qwen3-VL-4B-Instruct")
+
+    if not os.path.exists(model_path):
+        print(f"ERROR: Merged model not found: {model_path}")
+        sys.exit(1)
+
+    processor = AutoProcessor.from_pretrained(base_model, trust_remote_code=True)
+
+    print(f"Loading vLLM model for image check: {model_path}")
+    llm = LLM(
+        model=model_path,
+        dtype="bfloat16",
+        max_model_len=4096,
+        trust_remote_code=True,
+    )
+    sampling_params = SamplingParams(max_tokens=256, temperature=0.0)
+
+    test_samples = random.sample(source_dataset, min(num_samples, len(source_dataset)))
+
+    for i, sample in enumerate(test_samples):
+        img = Image.open(sample["image_path"]).convert("RGB")
+        print(f"\n--- Sample {i+1}/{len(test_samples)} ---")
+        print(f"Image: {os.path.basename(sample['image_path'])}")
+        print(f"Size: {img.size}, Mode: {img.mode}")
+        print(f"Actual signal: {sample['actual_signal']}")
+
+        messages = [{"role": "user", "content": [
+            {"type": "image"},
+            {"type": "text", "text": "Describe this image in detail."},
+        ]}]
+        prompt_text = processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
+        output = llm.generate(
+            [{"prompt": prompt_text, "multi_modal_data": {"image": img}}],
+            sampling_params=sampling_params,
+        )
+        response = output[0].outputs[0].text
+        print(f"Model response:\n{response[:500]}")
+
+    del llm
+    print("\nImage check complete.")
+
+
 def main():
-    parser = argparse.ArgumentParser(description="DPO: Build chosen/rejected pairs (vLLM)")
+    parser = argparse.ArgumentParser(description="DPO: Build chosen/rejected pairs (vLLM + BGE-M3)")
     parser.add_argument("--config", type=str, required=True, help="YAML config path")
     parser.add_argument("--max-samples", type=int, default=None)
+    parser.add_argument("--no-embedding", action="store_true",
+                        help="Skip BGE-M3 embedding, use signal-only scoring")
+    parser.add_argument("--check-image", action="store_true",
+                        help="Test image loading with 'Describe this image' before building pairs")
     parser.add_argument("--source-dataset", type=str, default=None,
                         help="Source dataset.jsonl path (default: data/teacher/dataset.jsonl)")
     args = parser.parse_args()
@@ -192,11 +405,17 @@ def main():
     output_path = os.path.join(PROJECT_ROOT, cfg.get("dataset_path", "data/dpo_pairs.jsonl"))
 
     print("=" * 60)
-    print("DPO: Build Chosen/Rejected Pairs (vLLM)")
+    print("DPO: Build Chosen/Rejected Pairs (vLLM + BGE-M3)")
+    print(f"  Embedding: {'OFF' if args.no_embedding else 'ON (BGE-M3)'}")
     print("=" * 60)
 
     samples = load_source_dataset(source_path, args.max_samples)
-    pairs = generate_pairs(samples, cfg)
+
+    if args.check_image:
+        check_image(samples, cfg)
+        return
+
+    pairs = generate_pairs(samples, cfg, use_embedding=not args.no_embedding)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
@@ -206,6 +425,16 @@ def main():
     print(f"\n{'=' * 60}")
     print(f"Total pairs: {len(pairs)}")
     print(f"Output: {output_path}")
+
+    # Score distribution
+    if pairs:
+        scores = [(p["best_score"], p["worst_score"]) for p in pairs]
+        avg_best = sum(s[0] for s in scores) / len(scores)
+        avg_worst = sum(s[1] for s in scores) / len(scores)
+        avg_gap = sum(s[0] - s[1] for s in scores) / len(scores)
+        print(f"Avg best score:  {avg_best:.2f}")
+        print(f"Avg worst score: {avg_worst:.2f}")
+        print(f"Avg score gap:   {avg_gap:.2f}")
 
 
 if __name__ == "__main__":
