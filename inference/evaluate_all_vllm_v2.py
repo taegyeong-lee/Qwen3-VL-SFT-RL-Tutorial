@@ -32,7 +32,7 @@ if PROJECT_ROOT not in sys.path:
 from PIL import Image
 from shared.dataset_utils import load_dataset_splits
 from inference.predict import parse_output, SYSTEM_PROMPT, USER_PROMPT
-from inference.metrics import compute_metrics, print_classification_report
+from inference.metrics import print_classification_report
 
 
 def find_models(models_dir: str) -> list:
@@ -55,7 +55,7 @@ def find_models(models_dir: str) -> list:
     return candidates
 
 
-def build_prompt(processor, image_path: str) -> str:
+def build_prompt(processor) -> str:
     """processor.apply_chat_template()으로 프롬프트 생성."""
     messages = [
         {"role": "system", "content": [
@@ -71,7 +71,7 @@ def build_prompt(processor, image_path: str) -> str:
     )
 
 
-def check_image(test_dataset, model_path: str, max_pixels: int = 4194304):
+def check_image(test_dataset, model_path: str, max_pixels: int = 16777216):
     """이미지 로딩 + 모델 인식 체크."""
     from vllm import LLM, SamplingParams
     from transformers import AutoProcessor
@@ -152,7 +152,7 @@ def check_image(test_dataset, model_path: str, max_pixels: int = 4194304):
 
 
 def evaluate_model_vllm(model_path: str, test_dataset, max_eval: int = None,
-                        chunk_size: int = 500, max_pixels: int = 4194304) -> dict:
+                        chunk_size: int = 500, max_pixels: int = 16777216) -> dict:
     """vLLM으로 한 모델 평가. 청크 단위 배치 처리."""
     from vllm import LLM, SamplingParams
     from transformers import AutoProcessor
@@ -178,7 +178,7 @@ def evaluate_model_vllm(model_path: str, test_dataset, max_eval: int = None,
         processor.image_processor.max_pixels = max_pixels
         processor.image_processor.min_pixels = min(256 * 28 * 28, max_pixels)
 
-    prompt_text = build_prompt(processor, "")
+    prompt_text = build_prompt(processor)
 
     # vLLM 로드
     print(f"  Loading vLLM model: {model_path}")
@@ -328,7 +328,7 @@ def main():
     parser.add_argument("--models-dir", type=str, required=True, help="Directory with merged models")
     parser.add_argument("--max-eval", type=int, default=None)
     parser.add_argument("--chunk-size", type=int, default=500)
-    parser.add_argument("--max-pixels", type=int, default=4194304)
+    parser.add_argument("--max-pixels", type=int, default=16777216)
     parser.add_argument("--save-dir", type=str, default=os.path.join(PROJECT_ROOT, "outputs", "eval_results"))
     parser.add_argument("--check-image", action="store_true",
                         help="평가 없이 이미지 로딩 + 모델 인식 체크만 수행")

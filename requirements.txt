@@ -18,6 +18,7 @@ accelerate
 
 # ── Inference / DPO Pair Generation ──
 # vllm>=0.6.0
+sentence-transformers  # BGE-M3 for DPO reasoning similarity
 
 # ── Monitoring ──
 tensorboard
