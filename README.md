@@ -6,6 +6,13 @@ Qwen3-VL-4B 비전 언어 모델을 SFT → DPO 순서로 파인튜닝하여 BTC
 
 - [Qwen3-VL 4B 비트코인 차트 해석 모델 만들기 — 2편: 허깅페이스 TRL로 LoRA 파인튜닝](https://velog.io/@seawhale/Qwen3-VL-4B-%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%B0%A8%ED%8A%B8-%ED%95%B4%EC%84%9D-%EB%AA%A8%EB%8D%B8-%EB%A7%8C%EB%93%A4%EA%B8%B0-2%ED%8E%B8-%ED%97%88%EA%B9%85%ED%8E%98%EC%9D%B4%EC%8A%A4-TRL%EB%A1%9C-LoRA-%ED%8C%8C%EC%9D%B8%ED%8A%9C%EB%8B%9D)
 
+## Chart Examples
+
+| LONG | SHORT | NEUTRAL |
+|------|-------|---------|
+| ![LONG](assets/example_long.png) | ![SHORT](assets/example_short.png) | ![NEUTRAL](assets/example_neutral.png) |
+
+---
 
 ## Setup
 
@@ -73,15 +80,7 @@ OPENAI_API_KEY=sk-...
 
 ---
 
-## Chart Examples
-
-| LONG | SHORT | NEUTRAL |
-|------|-------|---------|
-| ![LONG](assets/example_long.png) | ![SHORT](assets/example_short.png) | ![NEUTRAL](assets/example_neutral.png) |
-
----
-
-## Step 0~3: 데이터 준비
+## 데이터 준비
 
 ```bash
 # 0) 차트 이미지 생성 (균형 샘플링)
@@ -106,171 +105,12 @@ python shared/analyze_dataset.py --path data/teacher/dataset.jsonl
 
 ---
 
-## SFT Training
+## Training
 
-```bash
-# Single GPU
-python sft/train.py --config sft/configs/single.yaml
-
-# Multi GPU
-accelerate launch --config_file sft/configs/fsdp2.yaml sft/train.py --config sft/configs/multi.yaml
-
-# 소량 테스트
-python sft/train.py --config sft/configs/single.yaml --max-samples 50
-```
-
-### SFT 하이퍼파라미터 (yaml로 조정)
-
-| | Single GPU | Multi GPU |
-|---|----------|-------------|
-| Model | Qwen3-VL-4B-Instruct | Qwen3-VL-4B-Instruct |
-| LoRA rank / alpha | 16 / 32 | 16 / 32 |
-| Batch x Grad Accum | 1 x 16 = **16** | 4 x 4 = **16** (x2 GPU = **32**) |
-| Learning Rate | 1e-4 | 5e-5 |
-| Epochs | 2 | 2 |
-
-### SFT Evaluation Results (checkpoint-200, Best)
-
-테스트셋 600개 (LONG 214 / SHORT 259 / NEUTRAL 127)에 대한 vLLM 평가 결과.
-
-**Accuracy: 42.7% | Macro F1: 42.4%**
-
-#### Accuracy by Checkpoint
-
-![Accuracy Curve](assets/accuracy_curve.png)
-
-#### Confusion Matrix (checkpoint-200)
-
-![Confusion Matrix](assets/confusion_matrix.png)
-
-| | Pred LONG | Pred SHORT | Pred NEUTRAL | Recall |
-|---|---|---|---|---|
-| **LONG** | 71 | 60 | 83 | 33.2% |
-| **SHORT** | 55 | 102 | 102 | 39.4% |
-| **NEUTRAL** | 16 | 28 | 83 | 65.4% |
-
-#### Classification Report
-
-| Class | Precision | Recall | F1 | Support |
-|---|---|---|---|---|
-| LONG | 50.0% | 33.2% | 39.9% | 214 |
-| SHORT | 53.7% | 39.4% | 45.4% | 259 |
-| NEUTRAL | 31.0% | 65.4% | 42.0% | 127 |
-| **Macro Avg** | 44.9% | 46.0% | 42.4% | |
-
-#### F1 Score by Class & Checkpoint
-
-![F1 Comparison](assets/f1_comparison.png)
-
-| Checkpoint | Accuracy | LONG F1 | SHORT F1 | NEUTRAL F1 | Macro F1 |
-|---|---|---|---|---|---|
-| **checkpoint-200** | **42.7%** | **39.9%** | 45.4% | **42.0%** | **42.4%** |
-| checkpoint-300 | 39.8% | 15.2% | **51.6%** | 39.6% | 35.5% |
-| final | 41.7% | 19.3% | 52.6% | 41.6% | 37.8% |
-
-> checkpoint-200 이후 LONG recall이 급락하며 SHORT 편향이 심화됨. epoch 1.33 시점이 최적.
-
----
-
-## DPO Training
-
-### 개요
-
-DPO(Direct Preference Optimization)는 SFT 모델의 출력 중 **좋은 응답(chosen)과 나쁜 응답(rejected)** 쌍으로 선호도 학습을 수행한다.
-
-```
-SFT 모델 → 같은 차트에 N번 생성 → 복합 스코어링 → best(chosen) / worst(rejected) 쌍 구성 → DPO 학습
-```
-
-### Step 1: SFT LoRA 머지
-
-vLLM은 LoRA를 직접 로드할 수 없으므로 base + adapter를 먼저 머지한다.
-
-```bash
-python inference/merge_lora.py --adapter outputs/sft_lora/checkpoint-200 --output outputs/sft_merged
-
-# 또는 Google Drive에서 머지된 모델 다운로드 (Setup 6번 참고)
-```
-
-### Step 2: 이미지 로딩 체크
-
-DPO 쌍 생성 전에 이미지가 제대로 인식되는지 확인한다. "Describe this image in detail"로 테스트.
-
-```bash
-python dpo/build_pairs.py --config dpo/configs/single.yaml --check-image
-```
-
-### Step 3: DPO Chosen/Rejected 쌍 생성
-
-SFT 머지 모델로 각 차트에 대해 N번(기본 8번) 생성 후, **복합 스코어링**으로 best/worst를 선정한다.
-
-```bash
-# 전체 (6000개 차트 × 8번 생성 = 48000 outputs)
-python dpo/build_pairs.py --config dpo/configs/single.yaml
-
-# 테스트 (100개만)
-python dpo/build_pairs.py --config dpo/configs/single.yaml --max-samples 100
-
-# BGE-M3 임베딩 없이 (signal 일치 여부만으로 스코어링)
-python dpo/build_pairs.py --config dpo/configs/single.yaml --no-embedding
-```
-
-#### 복합 스코어링 기준
-
-각 생성 응답에 점수를 매겨 best(chosen) vs worst(rejected)를 선정:
-
-| 기준 | 가중치 | 설명 |
-|------|--------|------|
-| Signal 일치 | **10** | actual_signal과 맞으면 +10 |
-| Reasoning 유사도 | **5** | Teacher reasoning과 BGE-M3 cosine similarity × 5 |
-| Confidence 보정 | **1** | 맞았을 때 confidence 높으면 +, 틀렸을 때 낮으면 + |
-
-```
-예시 (actual_signal = LONG):
-  생성1: LONG  ✓ + sim=0.82 + conf=80 → score=14.9  ← chosen
-  생성2: SHORT ✗ + sim=0.30 + conf=85 → score=1.75  ← rejected
-```
-
-#### 쌍 선택 로직
-
-| 상황 | 처리 |
-|------|------|
-| Mixed (맞은 것 + 틀린 것 혼재) | best vs worst 쌍 생성 |
-| All correct (전부 맞음) | score 차이 > 1.0이면 쌍 생성 (reasoning 품질 차이) |
-| All wrong (전부 틀림) | 스킵 |
-
-출력 파일(`data/dpo_pairs.jsonl`)에는 chosen/rejected 외에 **모든 생성 결과(`all_outputs`)**도 저장된다.
-
-### Step 4: DPO 학습
-
-```bash
-# Single GPU
-python dpo/train.py --config dpo/configs/single.yaml
-
-# Multi GPU
-accelerate launch --config_file sft/configs/fsdp2.yaml dpo/train.py --config dpo/configs/multi.yaml
-```
-
-### Step 5: DPO 모델 평가
-
-```bash
-# DPO LoRA 머지
-python inference/merge_lora.py --adapter outputs/dpo_lora/checkpoint-100 --output outputs/dpo_merged/checkpoint-100
-
-# 평가
-python inference/evaluate_all_vllm_v2.py --models-dir outputs/dpo_merged
-```
-
-### DPO 하이퍼파라미터 (yaml로 조정)
-
-| 파라미터 | 값 | 설명 |
-|---------|-----|------|
-| `beta` | 0.1 | KL penalty coefficient |
-| `loss_type` | sigmoid | sigmoid / hinge / ipo |
-| `lr` | 5e-6 | SFT보다 낮게 |
-| `lora_rank` / `lora_alpha` | 16 / 32 | SFT와 동일 |
-| `pair_generation.num_samples_per_image` | 8 | 이미지당 생성 횟수 |
-| `pair_generation.temperature` | 1.0 | 샘플링 다양성 |
+| 단계 | 설명 | 상세 |
+|------|------|------|
+| **SFT** | Teacher distillation으로 LoRA 파인튜닝 | [sft/README.md](sft/README.md) |
+| **DPO** | SFT 모델 위에 선호도 학습 | [dpo/README.md](dpo/README.md) |
 
 ---
 

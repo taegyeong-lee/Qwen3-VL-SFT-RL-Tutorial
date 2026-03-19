@@ -52,8 +52,8 @@ def load_embedding_model(model_name: str = "BAAI/bge-m3"):
     """BGE-M3 임베딩 모델 로드."""
     try:
         from sentence_transformers import SentenceTransformer
-        print(f"Loading embedding model: {model_name}")
-        model = SentenceTransformer(model_name)
+        print(f"Loading embedding model: {model_name} (CPU)")
+        model = SentenceTransformer(model_name, device="cpu")
         return model
     except ImportError:
         print("WARNING: sentence-transformers not installed. pip install sentence-transformers")
@@ -177,13 +177,14 @@ def load_source_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
     return samples
 
 
-def generate_pairs(samples: list[dict], cfg: dict, use_embedding: bool = True) -> list[dict]:
+def generate_pairs(samples: list[dict], cfg: dict, use_embedding: bool = True,
+                    output_path: str = None) -> list[dict]:
     """vLLM으로 SFT 모델 N번 샘플링 → 복합 스코어링 → chosen/rejected 쌍 생성."""
     model_path = os.path.join(PROJECT_ROOT, cfg.get("sft_merged_path", "outputs/sft_merged"))
     pair_cfg = cfg.get("pair_generation", {})
     num_samples = pair_cfg.get("num_samples_per_image", 8)
     temperature = pair_cfg.get("temperature", 1.0)
-    max_new_tokens = pair_cfg.get("max_new_tokens", 512)
+    max_new_tokens = pair_cfg.get("max_new_tokens", 768)
 
     if not os.path.exists(model_path):
         print(f"ERROR: Merged model not found: {model_path}")
@@ -215,114 +216,126 @@ def generate_pairs(samples: list[dict], cfg: dict, use_embedding: bool = True) -
         n=num_samples,
     )
 
-    # vLLM 입력 구성 (processor.apply_chat_template 방식)
-    print(f"Building {len(samples)} prompts (n={num_samples} per image)...")
-    prompts = []
-    for sample in samples:
-        img = Image.open(sample["image_path"]).convert("RGB")
-
-        messages = []
-        if sample["system_text"]:
-            messages.append({"role": "system", "content": [
-                {"type": "text", "text": sample["system_text"]},
-            ]})
-        messages.append({"role": "user", "content": [
-            {"type": "image"},
-            {"type": "text", "text": sample["user_text"]},
-        ]})
-
-        prompt_text = processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        prompts.append({"prompt": prompt_text, "multi_modal_data": {"image": img}})
-
-    # vLLM batch generate
-    print(f"Generating {len(prompts)} x {num_samples} = {len(prompts) * num_samples} outputs...")
-    outputs = llm.generate(prompts, sampling_params=sampling_params)
-
-    # 스코어링 + chosen/rejected 쌍 구성
+    # 청크 단위 처리 + 중간 저장
+    chunk_size = pair_cfg.get("chunk_size", 500)
     pairs = []
     stats = {"total": 0, "both_correct": 0, "both_wrong": 0, "mixed": 0, "parse_fail": 0}
 
-    for i, (sample, output) in enumerate(zip(samples, outputs)):
-        scored_outputs = []
+    for chunk_start in range(0, len(samples), chunk_size):
+        chunk_end = min(chunk_start + chunk_size, len(samples))
+        chunk_samples = samples[chunk_start:chunk_end]
+        print(f"\n--- Chunk {chunk_start//chunk_size + 1} [{chunk_start+1}~{chunk_end}/{len(samples)}] ---")
 
-        for completion in output.outputs:
-            output_text = completion.text
-            parsed = parse_model_output(output_text)
+        # vLLM 입력 구성 (processor.apply_chat_template 방식)
+        prompts = []
+        for sample in chunk_samples:
+            img = Image.open(sample["image_path"]).convert("RGB")
 
-            if not parsed or "signal" not in parsed:
-                stats["parse_fail"] += 1
+            messages = []
+            if sample["system_text"]:
+                messages.append({"role": "system", "content": [
+                    {"type": "text", "text": sample["system_text"]},
+                ]})
+            messages.append({"role": "user", "content": [
+                {"type": "image"},
+                {"type": "text", "text": sample["user_text"]},
+            ]})
+
+            prompt_text = processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            prompts.append({"prompt": prompt_text, "multi_modal_data": {"image": img}})
+
+        # vLLM batch generate
+        print(f"  Generating {len(prompts)} x {num_samples} = {len(prompts) * num_samples} outputs...")
+        outputs = llm.generate(prompts, sampling_params=sampling_params)
+
+        # 스코어링 + chosen/rejected 쌍 구성
+        for i, (sample, output) in enumerate(zip(chunk_samples, outputs)):
+            scored_outputs = []
+
+            for completion in output.outputs:
+                output_text = completion.text
+                parsed = parse_model_output(output_text)
+
+                if not parsed or "signal" not in parsed:
+                    stats["parse_fail"] += 1
+                    continue
+
+                score = score_output(
+                    parsed, sample["actual_signal"],
+                    sample["teacher_reasoning"], embed_model
+                )
+                scored_outputs.append({
+                    "text": output_text,
+                    "score": score,
+                    "signal_match": parsed.get("signal") == sample["actual_signal"],
+                })
+
+            if len(scored_outputs) < 2:
                 continue
 
-            score = score_output(
-                parsed, sample["actual_signal"],
-                sample["teacher_reasoning"], embed_model
-            )
-            scored_outputs.append({
-                "text": output_text,
-                "score": score,
-                "signal_match": parsed.get("signal") == sample["actual_signal"],
+            stats["total"] += 1
+
+            # best와 worst 선택
+            scored_outputs.sort(key=lambda x: x["score"], reverse=True)
+            best = scored_outputs[0]
+            worst = scored_outputs[-1]
+
+            all_correct = all(o["signal_match"] for o in scored_outputs)
+            all_wrong = not any(o["signal_match"] for o in scored_outputs)
+
+            if all_correct:
+                stats["both_correct"] += 1
+                if embed_model and (best["score"] - worst["score"]) > 1.0:
+                    pass  # 아래에서 쌍 생성
+                else:
+                    continue
+            elif all_wrong:
+                stats["both_wrong"] += 1
+                continue
+            else:
+                stats["mixed"] += 1
+
+            pairs.append({
+                "prompt": [
+                    {"role": "system", "content": sample["system_text"]},
+                    {"role": "user", "content": [
+                        {"type": "image"},
+                        {"type": "text", "text": sample["user_text"]},
+                    ]},
+                ] if sample["system_text"] else [
+                    {"role": "user", "content": [
+                        {"type": "image"},
+                        {"type": "text", "text": sample["user_text"]},
+                    ]},
+                ],
+                "images": [os.path.relpath(sample["image_path"], PROJECT_ROOT)],
+                "chosen": [{"role": "assistant", "content": best["text"]}],
+                "rejected": [{"role": "assistant", "content": worst["text"]}],
+                "actual_signal": sample["actual_signal"],
+                "best_score": round(best["score"], 3),
+                "worst_score": round(worst["score"], 3),
+                "all_outputs": [
+                    {
+                        "text": o["text"],
+                        "score": round(o["score"], 3),
+                        "signal_match": o["signal_match"],
+                    } for o in scored_outputs
+                ],
             })
 
-        if len(scored_outputs) < 2:
-            continue
+        print(f"  Chunk done. pairs={len(pairs)} "
+              f"(mixed={stats['mixed']} both_correct={stats['both_correct']} "
+              f"both_wrong={stats['both_wrong']})")
 
-        stats["total"] += 1
-
-        # best와 worst 선택
-        scored_outputs.sort(key=lambda x: x["score"], reverse=True)
-        best = scored_outputs[0]
-        worst = scored_outputs[-1]
-
-        all_correct = all(o["signal_match"] for o in scored_outputs)
-        all_wrong = not any(o["signal_match"] for o in scored_outputs)
-
-        if all_correct:
-            stats["both_correct"] += 1
-            # 전부 맞아도 reasoning 유사도 차이가 있으면 쌍 생성
-            if embed_model and (best["score"] - worst["score"]) > 1.0:
-                pass  # 아래에서 쌍 생성
-            else:
-                continue
-        elif all_wrong:
-            stats["both_wrong"] += 1
-            continue  # 전부 틀리면 스킵
-        else:
-            stats["mixed"] += 1
-
-        pairs.append({
-            "prompt": [
-                {"role": "system", "content": sample["system_text"]},
-                {"role": "user", "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": sample["user_text"]},
-                ]},
-            ] if sample["system_text"] else [
-                {"role": "user", "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": sample["user_text"]},
-                ]},
-            ],
-            "images": [os.path.relpath(sample["image_path"], PROJECT_ROOT)],
-            "chosen": [{"role": "assistant", "content": best["text"]}],
-            "rejected": [{"role": "assistant", "content": worst["text"]}],
-            "actual_signal": sample["actual_signal"],
-            "best_score": round(best["score"], 3),
-            "worst_score": round(worst["score"], 3),
-            "all_outputs": [
-                {
-                    "text": o["text"],
-                    "score": round(o["score"], 3),
-                    "signal_match": o["signal_match"],
-                } for o in scored_outputs
-            ],
-        })
-
-        if (i + 1) % 100 == 0 or i == len(samples) - 1:
-            print(f"  [{i+1}/{len(samples)}] pairs={len(pairs)} "
-                  f"(mixed={stats['mixed']} both_correct={stats['both_correct']} "
-                  f"both_wrong={stats['both_wrong']})")
+        # 중간 저장
+        if output_path:
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                for pair in pairs:
+                    f.write(json.dumps(pair, ensure_ascii=False) + "\n")
+            print(f"  Saved {len(pairs)} pairs to {output_path}")
 
     print(f"\n--- Pair Generation Stats ---")
     print(f"Total processed:  {stats['total']}")
@@ -420,7 +433,7 @@ def main():
         check_image(samples, cfg)
         return
 
-    pairs = generate_pairs(samples, cfg, use_embedding=not args.no_embedding)
+    pairs = generate_pairs(samples, cfg, use_embedding=not args.no_embedding, output_path=output_path)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
