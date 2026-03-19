@@ -1,18 +1,14 @@
 """
-DPO: Direct Preference Optimization Training
+DPO: Direct Preference Optimization Training (TRL + PEFT)
 
-SFT 모델 위에 DPO로 chosen/rejected 쌍을 학습하여 정확도 향상.
+SFT 머지 모델 위에 DPO LoRA를 학습하여 선호도 기반 정렬.
 
 Usage:
-  # 1) 먼저 페어 생성
-  python dpo/build_pairs.py --config dpo/configs/3060.yaml
+  python dpo/train.py --config dpo/configs/single.yaml
+  python dpo/train.py --config dpo/configs/single.yaml --max-samples 100
 
-  # 2) DPO 학습
-  python dpo/train.py --config dpo/configs/3060.yaml
-
-  A100:
-    python dpo/train.py --config dpo/configs/a100.yaml
-    accelerate launch --num_processes 2 dpo/train.py --config dpo/configs/a100.yaml
+  # Multi GPU (FSDP2)
+  accelerate launch --config_file sft/configs/fsdp2.yaml dpo/train.py --config dpo/configs/multi.yaml
 """
 
 import os
@@ -26,13 +22,46 @@ if PROJECT_ROOT not in sys.path:
 
 import yaml
 from PIL import Image
+from datasets import Dataset
+from peft import LoraConfig
+from trl import DPOConfig, DPOTrainer
 
 
-def load_dpo_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
-    """Load DPO pairs into format expected by TRL DPOTrainer.
+def _parse_dpo_entry(entry: dict) -> dict | None:
+    """DPO pair entry를 TRL VLM DPO 포맷으로 변환."""
+    images = entry.get("images", [])
+    if not images:
+        return None
 
-    Returns list of {"prompt": [...], "chosen": str, "rejected": str, "images": [PIL.Image]}
-    """
+    abs_path = os.path.join(PROJECT_ROOT, images[0])
+    if not os.path.exists(abs_path):
+        return None
+
+    chosen = entry.get("chosen")
+    rejected = entry.get("rejected")
+    if not chosen or not rejected:
+        return None
+
+    img = Image.open(abs_path).convert("RGB")
+
+    # prompt 구성
+    prompt = entry.get("prompt", [])
+
+    # chosen/rejected: TRL은 content가 string이어야 함
+    # build_pairs.py 출력: [{"role": "assistant", "content": "text"}]
+    chosen_msgs = chosen if isinstance(chosen, list) else [{"role": "assistant", "content": chosen}]
+    rejected_msgs = rejected if isinstance(rejected, list) else [{"role": "assistant", "content": rejected}]
+
+    return {
+        "prompt": prompt,
+        "chosen": chosen_msgs,
+        "rejected": rejected_msgs,
+        "images": [img],
+    }
+
+
+def load_dpo_dataset(jsonl_path: str, max_samples: int = None):
+    """DPO pairs를 로드하여 train/eval split 반환."""
     samples = []
     with open(jsonl_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -44,54 +73,26 @@ def load_dpo_dataset(jsonl_path: str, max_samples: int = None) -> list[dict]:
     if max_samples:
         samples = samples[:max_samples]
 
-    print(f"DPO Dataset: {len(samples)} pairs")
-    return samples
+    # 90/10 split
+    n = len(samples)
+    split_idx = int(n * 0.9)
+    train_data = samples[:split_idx]
+    eval_data = samples[split_idx:] if split_idx < n else None
 
+    def gen(data):
+        for item in data:
+            yield item
 
-def _parse_dpo_entry(entry: dict) -> dict | None:
-    """Convert DPO pair entry to TRL format."""
-    image_path = entry.get("image_path")
-    if not image_path:
-        return None
+    train_ds = Dataset.from_generator(lambda: gen(train_data))
+    eval_ds = Dataset.from_generator(lambda: gen(eval_data)) if eval_data else None
 
-    abs_path = os.path.join(PROJECT_ROOT, image_path)
-    if not os.path.exists(abs_path):
-        return None
-
-    chosen = entry.get("chosen", "")
-    rejected = entry.get("rejected", "")
-    if not chosen or not rejected:
-        return None
-
-    img = Image.open(abs_path).convert("RGB")
-
-    # Build prompt messages in VLM format
-    prompt_msgs = []
-    for msg in entry.get("prompt", []):
-        if msg["role"] == "system":
-            prompt_msgs.append({"role": "system", "content": [{"type": "text", "text": msg["content"]}]})
-        elif msg["role"] == "user":
-            prompt_msgs.append({
-                "role": "user",
-                "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": msg["content"]},
-                ],
-            })
-
-    return {
-        "prompt": prompt_msgs,
-        "chosen": [{"role": "assistant", "content": [{"type": "text", "text": chosen}]}],
-        "rejected": [{"role": "assistant", "content": [{"type": "text", "text": rejected}]}],
-        "images": [img],
-    }
+    print(f"DPO Dataset: {n} pairs | Train: {len(train_data)} | Eval: {len(eval_data) if eval_data else 0}")
+    return train_ds, eval_ds
 
 
 def main():
-    parser = argparse.ArgumentParser(description="DPO Training")
+    parser = argparse.ArgumentParser(description="DPO Training (TRL + PEFT)")
     parser.add_argument("--config", type=str, required=True, help="YAML config path")
-    parser.add_argument("--sft-adapter", type=str, default=None,
-                        help="SFT LoRA adapter path (override yaml)")
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--resume", type=str, default=None)
     args = parser.parse_args()
@@ -100,104 +101,92 @@ def main():
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
-    import torch
-    from unsloth import FastVisionModel
-    from trl import DPOConfig, DPOTrainer
+    # SFT 머지 모델을 base로 사용 (LoRA가 아닌 풀 모델)
+    model_name = os.path.join(PROJECT_ROOT, cfg.get("sft_merged_path", "outputs/sft_merged"))
+    if not os.path.exists(model_name):
+        # fallback: base model
+        model_name = cfg["model"]
+        print(f"WARNING: sft_merged_path not found, using base model: {model_name}")
 
-    model_name = cfg["model"]
-    sft_adapter = args.sft_adapter or os.path.join(PROJECT_ROOT, cfg.get("sft_adapter_path", "outputs/sft_lora/final"))
-    load_in_4bit = cfg.get("quantize_4bit", True)
+    dataset_path = os.path.join(PROJECT_ROOT, cfg.get("dataset_path", "data/dpo_pairs.jsonl"))
+    output_dir = os.path.join(PROJECT_ROOT, cfg.get("output_dir", "outputs/dpo_lora"))
+    max_samples = args.max_samples or cfg.get("max_samples")
 
     print("=" * 60)
     print(f"DPO Training: {model_name}")
     print(f"Config: {os.path.basename(config_path)}")
     print("=" * 60)
 
-    # Load model
-    model, tokenizer = FastVisionModel.from_pretrained(
-        model_name,
-        load_in_4bit=load_in_4bit,
-        use_gradient_checkpointing="unsloth",
-    )
-
-    # Load SFT adapter first, then apply new LoRA for DPO
-    if os.path.exists(sft_adapter):
-        print(f"Loading SFT adapter: {sft_adapter}")
-        model.load_adapter(sft_adapter)
-
-    model = FastVisionModel.get_peft_model(
-        model,
-        r=cfg.get("lora_rank", 32),
-        lora_alpha=cfg.get("lora_alpha", 64),
-        lora_dropout=cfg.get("lora_dropout", 0.05),
-        target_modules=cfg.get("target_modules", [
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
-        ]),
-        finetune_vision_layers=False,
-        finetune_language_layers=True,
-        finetune_attention_modules=True,
-        finetune_mlp_modules=True,
-    )
-
     # Dataset
-    dataset_path = os.path.join(PROJECT_ROOT, cfg.get("dataset_path", "data/dpo_pairs.jsonl"))
-    max_samples = args.max_samples or cfg.get("max_samples")
-    train_data = load_dpo_dataset(dataset_path, max_samples)
+    train_ds, eval_ds = load_dpo_dataset(dataset_path, max_samples)
 
-    # Split train/eval
-    n = len(train_data)
-    split_idx = int(n * 0.9)
-    eval_data = train_data[split_idx:] if split_idx < n else None
-    train_data = train_data[:split_idx]
-    print(f"Train: {len(train_data)} | Eval: {len(eval_data) if eval_data else 0}")
+    # LoRA config
+    target_modules = cfg.get("target_modules", [
+        "q_proj", "k_proj", "v_proj", "o_proj",
+        "gate_proj", "up_proj", "down_proj",
+    ])
+    peft_config = LoraConfig(
+        r=cfg.get("lora_rank", 16),
+        lora_alpha=cfg.get("lora_alpha", 32),
+        lora_dropout=cfg.get("lora_dropout", 0.05),
+        target_modules=target_modules,
+        task_type="CAUSAL_LM",
+    )
 
-    output_dir = os.path.join(PROJECT_ROOT, cfg.get("output_dir", "outputs/dpo_lora"))
-
+    # DPOConfig
     dpo_kwargs = dict(
         output_dir=output_dir,
+        model_init_kwargs={"torch_dtype": "bfloat16", "device_map": None},
         num_train_epochs=cfg.get("num_train_epochs", 1),
         per_device_train_batch_size=cfg.get("per_device_train_batch_size", 1),
         gradient_accumulation_steps=cfg.get("gradient_accumulation_steps", 8),
         learning_rate=cfg.get("lr", 5e-6),
         lr_scheduler_type=cfg.get("lr_scheduler", "cosine"),
         warmup_ratio=cfg.get("warmup_ratio", 0.1),
-        optim=cfg.get("optim", "adamw_8bit"),
+        optim=cfg.get("optim", "adamw_torch"),
         fp16=False,
         bf16=cfg.get("bf16", True),
         max_grad_norm=cfg.get("max_grad_norm", 0.1),
         beta=cfg.get("beta", 0.1),
-        max_length=cfg.get("max_length", 2048),
-        max_prompt_length=cfg.get("max_prompt_length", 1024),
         loss_type=cfg.get("loss_type", "sigmoid"),
+        # VLM: 이미지 토큰 잘림 방지
+        max_length=None,
+        max_prompt_length=cfg.get("max_prompt_length", 1024),
         logging_steps=cfg.get("logging_steps", 10),
+        save_strategy="steps",
         save_steps=cfg.get("save_steps", 100),
         report_to=cfg.get("report_to", "tensorboard"),
         remove_unused_columns=False,
+        gradient_checkpointing=cfg.get("gradient_checkpointing", True),
     )
+
+    if eval_ds:
+        dpo_kwargs["eval_strategy"] = "steps"
+        dpo_kwargs["eval_steps"] = cfg.get("eval_steps", 100)
 
     training_args = DPOConfig(**dpo_kwargs)
 
+    # DPOTrainer: model을 string으로 전달하면 from_pretrained 자동 호출
     trainer = DPOTrainer(
-        model=model,
+        model=model_name,
         args=training_args,
-        processing_class=tokenizer,
-        train_dataset=train_data,
-        eval_dataset=eval_data,
+        train_dataset=train_ds,
+        eval_dataset=eval_ds,
+        peft_config=peft_config,
     )
 
-    q = "QLoRA 4-bit" if load_in_4bit else "LoRA bf16"
+    # Summary
     eff = cfg.get("per_device_train_batch_size", 1) * cfg.get("gradient_accumulation_steps", 8)
-    print(f"\n{q} | rank={cfg.get('lora_rank', 32)}, alpha={cfg.get('lora_alpha', 64)}")
+    print(f"\nLoRA bf16 | rank={cfg.get('lora_rank', 16)}, alpha={cfg.get('lora_alpha', 32)}")
     print(f"Batch: {cfg.get('per_device_train_batch_size', 1)} x {cfg.get('gradient_accumulation_steps', 8)} = {eff} effective")
     print(f"Beta: {cfg.get('beta', 0.1)} | Loss: {cfg.get('loss_type', 'sigmoid')}")
     print(f"Output: {output_dir}\n")
 
-    FastVisionModel.for_training(model)
+    # Train
     trainer.train(resume_from_checkpoint=args.resume)
 
-    model.save_pretrained(os.path.join(output_dir, "final"))
-    tokenizer.save_pretrained(os.path.join(output_dir, "final"))
+    # Save
+    trainer.save_model(os.path.join(output_dir, "final"))
     print(f"\nDone! DPO model saved to {output_dir}/final")
 
 

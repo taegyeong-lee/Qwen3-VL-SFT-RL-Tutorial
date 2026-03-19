@@ -31,6 +31,22 @@ python dpo/build_pairs.py --config dpo/configs/single.yaml --model outputs/sft_m
 
 SFT 머지 모델로 각 차트에 대해 N번(기본 8번) 생성 후, **복합 스코어링**으로 best/worst를 선정한다.
 
+### 2-Phase 파이프라인
+
+vLLM과 BGE-M3를 동시에 GPU에 올리면 VRAM이 부족하므로, 2단계로 분리하여 GPU를 시분할한다.
+
+```
+Phase 1: vLLM Generation (GPU)
+  ├─ 청크 500개씩 생성 (매 청크마다 .raw.jsonl 중간 저장)
+  └─ 전부 끝나면 vLLM 해제 → GPU 메모리 반환
+
+Phase 2: BGE-M3 Scoring (GPU)
+  ├─ 전체 임베딩 한 번에 배치 처리 (GPU, batch_size=512)
+  └─ 스코어링 + chosen/rejected 쌍 구성 → dpo_pairs.jsonl 저장
+```
+
+### 실행
+
 ```bash
 # 전체 (6000개 차트 × 8번 생성 = 48000 outputs)
 python dpo/build_pairs.py --config dpo/configs/single.yaml
