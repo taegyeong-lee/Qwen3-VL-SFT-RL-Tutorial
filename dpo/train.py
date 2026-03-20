@@ -21,7 +21,6 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 import yaml
-from PIL import Image
 from datasets import Dataset
 from peft import LoraConfig
 from trl import DPOConfig, DPOTrainer
@@ -42,8 +41,6 @@ def _parse_dpo_entry(entry: dict) -> dict | None:
     if not chosen or not rejected:
         return None
 
-    img = Image.open(abs_path).convert("RGB")
-
     # prompt 구성
     prompt = entry.get("prompt", [])
 
@@ -56,7 +53,7 @@ def _parse_dpo_entry(entry: dict) -> dict | None:
         "prompt": prompt,
         "chosen": chosen_msgs,
         "rejected": rejected_msgs,
-        "images": [img],
+        "images": [abs_path],
     }
 
 
@@ -90,11 +87,109 @@ def load_dpo_dataset(jsonl_path: str, max_samples: int = None):
     return train_ds, eval_ds
 
 
+def check_image(model_name: str, dataset_path: str):
+    """DPO 학습 전 이미지 로딩 체크. 모델이 이미지를 제대로 인식하는지 확인."""
+    from transformers import AutoModelForImageTextToText, AutoProcessor
+    from PIL import Image
+    import torch
+
+    print("=" * 60)
+    print("DPO Image Check Mode")
+    print("=" * 60)
+
+    # 데이터셋에서 첫 번째 이미지 로드
+    with open(dataset_path, "r", encoding="utf-8") as f:
+        entry = json.loads(f.readline())
+
+    img_rel = entry["images"][0]
+    img_path = os.path.join(PROJECT_ROOT, img_rel)
+    print(f"Image: {img_path}")
+    print(f"Exists: {os.path.exists(img_path)}")
+
+    img = Image.open(img_path).convert("RGB")
+    print(f"Size: {img.size}, Mode: {img.mode}")
+
+    # 모델 로드
+    print(f"\nLoading model: {model_name}")
+    processor = AutoProcessor.from_pretrained(model_name)
+    model = AutoModelForImageTextToText.from_pretrained(
+        model_name,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
+    )
+
+    # "Describe this image in detail" 로 테스트
+    messages = [
+        {"role": "user", "content": [
+            {"type": "image", "image": img_path},
+            {"type": "text", "text": "Describe this image in detail."},
+        ]},
+    ]
+    text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(text=[text], images=[img], return_tensors="pt").to(model.device)
+
+    print(f"\nInput tokens: {inputs['input_ids'].shape[1]}")
+    print(f"Pixel values shape: {inputs.get('pixel_values', 'N/A')}")
+    print(f"\nGenerating response...")
+
+    with torch.no_grad():
+        generated = model.generate(**inputs, max_new_tokens=256)
+
+    trimmed = generated[0][inputs["input_ids"].shape[1]:]
+    response = processor.decode(trimmed, skip_special_tokens=True)
+
+    print(f"\n{'─' * 60}")
+    print(f"Prompt: Describe this image in detail.")
+    print(f"{'─' * 60}")
+    print(f"Response:\n{response}")
+    print(f"{'─' * 60}")
+
+    # DPO prompt로도 테스트
+    prompt = entry.get("prompt", [])
+    user_text = ""
+    for msg in prompt:
+        if msg["role"] == "user":
+            if isinstance(msg["content"], list):
+                for item in msg["content"]:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        user_text = item["text"]
+            elif isinstance(msg["content"], str):
+                user_text = msg["content"]
+
+    if user_text:
+        messages2 = [
+            {"role": "user", "content": [
+                {"type": "image", "image": img_path},
+                {"type": "text", "text": user_text},
+            ]},
+        ]
+        text2 = processor.apply_chat_template(messages2, tokenize=False, add_generation_prompt=True)
+        inputs2 = processor(text=[text2], images=[img], return_tensors="pt").to(model.device)
+
+        with torch.no_grad():
+            generated2 = model.generate(**inputs2, max_new_tokens=512)
+
+        trimmed2 = generated2[0][inputs2["input_ids"].shape[1]:]
+        response2 = processor.decode(trimmed2, skip_special_tokens=True)
+
+        print(f"\nPrompt: {user_text[:100]}...")
+        print(f"{'─' * 60}")
+        print(f"Response:\n{response2}")
+        print(f"{'─' * 60}")
+
+    # chosen/rejected 확인
+    print(f"\nChosen: {entry.get('chosen', [{}])[0].get('content', '')[:100]}...")
+    print(f"Rejected: {entry.get('rejected', [{}])[0].get('content', '')[:100]}...")
+    print("\nImage check passed!")
+
+
 def main():
     parser = argparse.ArgumentParser(description="DPO Training (TRL + PEFT)")
     parser.add_argument("--config", type=str, required=True, help="YAML config path")
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--resume", type=str, default=None)
+    parser.add_argument("--check-image", action="store_true",
+                        help="학습 없이 이미지 로딩 + 모델 인식 체크만 수행")
     args = parser.parse_args()
 
     config_path = os.path.join(PROJECT_ROOT, args.config) if not os.path.isabs(args.config) else args.config
@@ -111,6 +206,11 @@ def main():
     dataset_path = os.path.join(PROJECT_ROOT, cfg.get("dataset_path", "data/dpo_pairs.jsonl"))
     output_dir = os.path.join(PROJECT_ROOT, cfg.get("output_dir", "outputs/dpo_lora"))
     max_samples = args.max_samples or cfg.get("max_samples")
+
+    # 이미지 체크 모드
+    if args.check_image:
+        check_image(model_name, dataset_path)
+        return
 
     print("=" * 60)
     print(f"DPO Training: {model_name}")
@@ -156,7 +256,8 @@ def main():
         save_steps=cfg.get("save_steps", 100),
         report_to=cfg.get("report_to", "tensorboard"),
         remove_unused_columns=False,
-        gradient_checkpointing=cfg.get("gradient_checkpointing", True),
+        gradient_checkpointing=cfg.get("gradient_checkpointing", False),
+        dataset_num_proc=cfg.get("dataset_num_proc", os.cpu_count()),
     )
 
     if eval_ds:
