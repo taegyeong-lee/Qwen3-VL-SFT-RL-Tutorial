@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/user/Desktop/dpo_new/**)",
+      "Read(//c/Users/user/Desktop/dpo_new/config/**)",
+      "Read(//c/Users/user/Desktop/dpo_new/accelerate_configs/**)",
+      "Read(//c/Users/user/Desktop/dpo_new-main/**)"
+    ]
+  }
+}

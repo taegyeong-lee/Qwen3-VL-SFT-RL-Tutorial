@@ -1,6 +1,6 @@
 # DPO Config - Single GPU (bf16 LoRA)
 model: "Qwen/Qwen3-VL-4B-Instruct"
-dataset_path: "data/dpo_pairs.jsonl"
+dataset_path: "data/dpo_dataset/dpo_pairs.jsonl"
 output_dir: "outputs/dpo_lora"
 sft_adapter_path: "outputs/sft_lora/final"
 sft_merged_path: "outputs/sft_merged"
