@@ -1,28 +1,28 @@
 # ── Data Preparation (Step 0~3) ──
-openai
-python-dotenv
-pandas
-numpy
-matplotlib
-mplfinance
-Pillow
-PyYAML
+openai==2.24.0
+python-dotenv==1.2.2
+pandas==3.0.1
+numpy==2.2.6
+matplotlib==3.10.8
+mplfinance==0.12.10b0
+Pillow==12.0.0
+PyYAML==6.0.3
 
 # ── Training (SFT / DPO / GRPO) ──
-torch>=2.6.0  # FSDP2 requires >= 2.6.0, install with: pip install torch --index-url https://download.pytorch.org/whl/cu124
-transformers>=4.45.0
-trl>=0.29.0
-peft>=0.12.0
-datasets
-accelerate
+torch==2.10.0  # install with: pip install torch --index-url https://download.pytorch.org/whl/cu124
+transformers==4.57.6
+trl==0.29.1
+peft==0.18.1
+datasets==4.8.3
+accelerate==1.13.0
 
 # ── Inference / DPO Pair Generation ──
-# vllm>=0.6.0
-sentence-transformers  # BGE-M3 for DPO reasoning similarity
+# vllm==0.17.1
+sentence-transformers==5.3.0  # BGE-M3 for DPO reasoning similarity
 
 # ── Monitoring ──
-tensorboard
+tensorboard==2.20.0
 
 # ── Misc ──
-tqdm
-gdown  # Google Drive download
+tqdm==4.67.3
+gdown==5.2.1  # Google Drive download

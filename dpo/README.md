@@ -93,8 +93,8 @@ python dpo/build_pairs.py --config dpo/configs/single.yaml --no-embedding
 # Single GPU
 python dpo/train.py --config dpo/configs/single.yaml
 
-# Multi GPU
-accelerate launch --config_file sft/configs/fsdp2.yaml dpo/train.py --config dpo/configs/multi.yaml
+# Multi GPU (FSDP2)
+accelerate launch --config_file dpo/configs/fsdp2.yaml dpo/train.py --config dpo/configs/multi.yaml
 ```
 
 ## Step 5: DPO 모델 평가

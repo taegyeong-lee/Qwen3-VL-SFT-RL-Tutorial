@@ -31,11 +31,11 @@ source ~/btc_env/bin/activate
 ### 2. PyTorch 설치 (CUDA 버전에 맞게)
 
 ```bash
-# CUDA 12.x (FSDP2 requires PyTorch >= 2.6.0)
-pip install torch>=2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu124
+# CUDA 12.x
+pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cu124
 
 # CUDA 11.8
-pip install torch>=2.6.0 torchvision --index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cu118
 ```
 
 ### 3. 의존성 설치
@@ -43,6 +43,8 @@ pip install torch>=2.6.0 torchvision --index-url https://download.pytorch.org/wh
 ```bash
 pip install -r requirements.txt
 ```
+
+> **Note:** RunPod 등 torch가 이미 설치된 이미지에서는 2번을 건너뛰고 `pip install -r requirements.txt`만 실행해도 됩니다.
 
 ### 4. Locale 설정 (Linux 서버)
 
@@ -180,3 +182,17 @@ tensorboard --logdir outputs/sft_lora --port 6006 --bind_all
 | 쌍 생성 | - | vLLM batch sampling |
 | 파인튜닝 | LoRA (bf16) | SFT 위에 LoRA (bf16) |
 | Loss | Cross-entropy | DPO sigmoid |
+
+## Tested Environment
+
+| 항목 | 버전 |
+|------|------|
+| Python | 3.11 |
+| PyTorch | 2.10.0 (CUDA 12.x) |
+| transformers | 4.57.6 |
+| trl | 0.29.1 |
+| peft | 0.18.1 |
+| accelerate | 1.13.0 |
+| vllm | 0.17.1 |
+
+> 전체 패키지 버전은 [requirements.txt](requirements.txt) 참고

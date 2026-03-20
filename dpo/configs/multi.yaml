@@ -21,15 +21,18 @@ warmup_ratio: 0.1
 optim: "adamw_torch"
 bf16: true
 max_grad_norm: 0.1
-gradient_checkpointing: false
+gradient_checkpointing: true
 dataloader_num_workers: 0
+
+# Image
+max_pixels: 4194304
 
 # DPO specific
 beta: 0.1
 max_length: 2048
 max_prompt_length: 1024
 loss_type: "sigmoid"
-precompute_ref_log_probs: true
+precompute_ref_log_probs: false
 
 # Checkpointing
 save_steps: 100
