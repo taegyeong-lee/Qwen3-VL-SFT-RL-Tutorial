@@ -249,6 +249,7 @@ def main():
         output_dir=output_dir,
         num_train_epochs=cfg.get("num_train_epochs", 1),
         per_device_train_batch_size=cfg.get("per_device_train_batch_size", 1),
+        per_device_eval_batch_size=cfg.get("per_device_eval_batch_size", 1),
         gradient_accumulation_steps=cfg.get("gradient_accumulation_steps", 8),
         learning_rate=cfg.get("lr", 5e-6),
         lr_scheduler_type=cfg.get("lr_scheduler", "cosine"),
@@ -260,7 +261,7 @@ def main():
         beta=cfg.get("beta", 0.1),
         loss_type=cfg.get("loss_type", "sigmoid"),
         max_length=max_length,
-        logging_steps=cfg.get("logging_steps", 10),
+        logging_steps=cfg.get("logging_steps", 1),
         save_strategy="steps",
         save_steps=cfg.get("save_steps", 100),
         report_to=cfg.get("report_to", "tensorboard"),
@@ -268,6 +269,7 @@ def main():
         gradient_checkpointing=cfg.get("gradient_checkpointing", False),
         gradient_checkpointing_kwargs={"use_reentrant": False},
         dataloader_num_workers=cfg.get("dataloader_num_workers", 0),
+        seed=cfg.get("seed", 21),
     )
 
     if eval_ds:

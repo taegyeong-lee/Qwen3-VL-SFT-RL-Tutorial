@@ -6,6 +6,8 @@ Qwen3-VL-4B 비전 언어 모델을 SFT → DPO 순서로 파인튜닝하여 BTC
 
 - [Qwen3-VL 4B 비트코인 차트 해석 모델 만들기 — 2편: 허깅페이스 TRL로 LoRA 파인튜닝](https://velog.io/@seawhale/Qwen3-VL-4B-%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%B0%A8%ED%8A%B8-%ED%95%B4%EC%84%9D-%EB%AA%A8%EB%8D%B8-%EB%A7%8C%EB%93%A4%EA%B8%B0-2%ED%8E%B8-%ED%97%88%EA%B9%85%ED%8E%98%EC%9D%B4%EC%8A%A4-TRL%EB%A1%9C-LoRA-%ED%8C%8C%EC%9D%B8%ED%8A%9C%EB%8B%9D)
 
+- Qwen3-VL 4B 비트코인 차트 해석 모델 만들기 — 3편: DPO로 응답 품질 정렬하기 (작성 중)
+
 ## Chart Examples
 
 | LONG | SHORT | NEUTRAL |
@@ -28,25 +30,15 @@ python3.11 -m venv ~/btc_env
 source ~/btc_env/bin/activate
 ```
 
-### 2. PyTorch 설치 (CUDA 버전에 맞게)
+### 2. 의존성 설치
 
 ```bash
-# CUDA 12.x
-pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cu124
-
-# CUDA 11.8
-pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu124
 ```
 
-### 3. 의존성 설치
+> **Note:** RunPod 등 CUDA torch가 이미 설치된 환경에서는 `--index-url` 없이 `pip install -r requirements.txt`만 실행해도 됩니다.
 
-```bash
-pip install -r requirements.txt
-```
-
-> **Note:** RunPod 등 torch가 이미 설치된 이미지에서는 2번을 건너뛰고 `pip install -r requirements.txt`만 실행해도 됩니다.
-
-### 4. Locale 설정 (Linux 서버)
+### 3. Locale 설정 (Linux 서버)
 
 학습 중 체크포인트 저장 시 `UnicodeDecodeError`가 발생할 수 있다. `~/.bashrc`에 추가:
 
@@ -55,13 +47,13 @@ export LANG=en_US.UTF-8
 export PYTHONIOENCODING=utf-8
 ```
 
-### 5. GPU 확인
+### 4. GPU 확인
 
 ```bash
 python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 ```
 
-### 6. SFT 체크포인트 다운로드 (LoRA 머지됨)
+### 5. SFT 체크포인트 다운로드 (LoRA 머지됨)
 
 학습 없이 바로 추론/DPO를 진행하려면 SFT 머지 모델을 다운로드:
 
@@ -71,10 +63,11 @@ python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_
 pip install gdown
 gdown 1GlPNi0Ukr6GoxOoMDcon7qDPbsK7mLeX -O sft_merged_checkpoint-200.zip
 unzip sft_merged_checkpoint-200.zip -d outputs/sft_merged/
+# 또는 Python으로: python -c "import zipfile; zipfile.ZipFile('sft_merged_checkpoint-200.zip').extractall('outputs/sft_merged/')"
 # outputs/sft_merged/checkpoint-200/ 에 config.json, model*.safetensors 등이 위치해야 함
 ```
 
-### 7. .env (데이터 생성 시 필요)
+### 6. .env (데이터 생성 시 필요)
 
 ```
 OPENAI_API_KEY=sk-...

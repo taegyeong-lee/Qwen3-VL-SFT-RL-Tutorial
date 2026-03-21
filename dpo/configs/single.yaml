@@ -15,6 +15,7 @@ quantize_4bit: false
 num_train_epochs: 1
 per_device_train_batch_size: 1
 gradient_accumulation_steps: 8
+per_device_eval_batch_size: 1
 lr: 5.0e-6
 lr_scheduler: "cosine"
 warmup_ratio: 0.1
@@ -27,6 +28,9 @@ beta: 0.1                  # KL penalty coefficient
 max_length: 2048
 max_prompt_length: 1024
 loss_type: "sigmoid"       # sigmoid | hinge | ipo
+
+# Image
+max_pixels: 4194304
 
 # Checkpointing
 save_steps: 100
